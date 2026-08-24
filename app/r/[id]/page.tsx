@@ -1,0 +1,165 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { getSignal, getWaitInfo, isQuickMeal } from "@/lib/signal";
+import { createServerClient } from "@/lib/supabaseServer";
+import { CHIP, TrafficLight } from "@/app/TrafficLight";
+import type { Restaurant, WaitReport } from "@/lib/types";
+
+import ReportButtons from "./ReportButtons";
+
+export const dynamic = "force-dynamic";
+
+const DAY = ["일", "월", "화", "수", "목", "금", "토"];
+const SOLO_TEXT: Record<Restaurant["solo_status"], string> = {
+  green: "1인석·바 있음, 혼자 가도 편함",
+  yellow: "1인석은 없지만 혼자 가능 (약간 눈치)",
+  red: "평일 점심 1인 입장 어려움",
+};
+const ORDER_TEXT: Record<string, string> = {
+  kiosk: "키오스크",
+  table_tablet: "테이블 태블릿",
+  staff_call: "직원 주문",
+};
+const NOISE = { 1: "조용", 2: "보통", 3: "시끌" } as const;
+const TALK = { 1: "무관심", 2: "보통", 3: "말 많음" } as const;
+
+function won(n: number) {
+  return n.toLocaleString("ko-KR");
+}
+function hhmm(t: string) {
+  return (t || "").slice(0, 5);
+}
+
+export default async function Detail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = createServerClient();
+  const now = new Date();
+
+  const { data: restaurant } = await supabase
+    .from("restaurants")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!restaurant) notFound();
+  const r = restaurant as Restaurant;
+
+  const { data: reportData } = await supabase
+    .from("wait_reports")
+    .select("*")
+    .eq("restaurant_id", id);
+  const reports = (reportData ?? []) as WaitReport[];
+
+  const signal = getSignal(r, reports, now);
+  const wait = getWaitInfo(r, reports, now);
+  const quick = isQuickMeal(r);
+
+  const waitConfidence =
+    wait.source === "report"
+      ? `실시간 제보 기준 · ${wait.reportCount}명 · 가장 최근 ${wait.freshestMin}분 전`
+      : wait.source === "default"
+        ? "평소 점심시간 기준 (추정)"
+        : "웨이팅 정보 없음";
+
+  const closed =
+    r.closed_days.length > 0
+      ? r.closed_days.map((d) => DAY[d]).join("·") + "요일"
+      : "휴무 없음";
+
+  return (
+    <div className="pb-24">
+      <Link href="/" className="inline-block py-2 text-sm text-slate-500">
+        ← 목록으로
+      </Link>
+
+      <div className="mt-1 flex items-center gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{r.name}</h1>
+        {quick && (
+          <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
+            ⚡ 빨리
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-slate-500">
+        {r.category} · 도보 {r.walk_min}분 · {won(r.price_min)}~{won(r.price_max)}원
+      </p>
+
+      {/* 큰 신호등 + 판정 이유 */}
+      <section className="mt-4 flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <div role="img" aria-label={`신호등 ${signal.label}`} className="shrink-0">
+          <TrafficLight color={signal.color} size="lg" />
+        </div>
+        <div>
+          <span
+            className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-semibold ring-1 ring-inset ${CHIP[signal.color]}`}
+          >
+            {signal.label}
+          </span>
+          <p className="mt-1.5 text-sm text-slate-600">{signal.reason}</p>
+          <p className="mt-1 text-xs text-slate-400">{waitConfidence}</p>
+        </div>
+      </section>
+
+      {/* 웨이팅 원탭 제보 */}
+      <section className="mt-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        <ReportButtons restaurantId={r.id} />
+      </section>
+
+      {/* 혼밥 정보 */}
+      <Info title="혼밥 정보">
+        <Row label="혼밥 난이도" value={SOLO_TEXT[r.solo_status]} />
+        {r.solo_note && <Row label="메모" value={r.solo_note} />}
+        <Row label="주문 방식" value={r.order_type ? ORDER_TEXT[r.order_type] : "정보 없음"} />
+        <Row label="셀프바" value={r.self_bar ? "있음 (물·반찬 셀프)" : "없음"} />
+      </Info>
+
+      {/* 분위기 */}
+      <Info title="분위기">
+        <Row label="소음" value={r.noise_level ? NOISE[r.noise_level] : "정보 없음"} />
+        <Row label="직원 말 걸기" value={r.staff_talk ? TALK[r.staff_talk] : "정보 없음"} />
+      </Info>
+
+      {/* 기본 정보 */}
+      <Info title="기본 정보">
+        {r.signature && <Row label="대표 메뉴" value={r.signature} />}
+        <Row label="가격" value={`${won(r.price_min)}~${won(r.price_max)}원`} />
+        <Row label="영업시간" value={`${hhmm(r.open_time)}~${hhmm(r.close_time)}`} />
+        <Row label="휴무" value={closed} />
+      </Info>
+
+      {r.kakaomap_url && (
+        <a
+          href={r.kakaomap_url}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 block rounded-2xl bg-slate-900 py-3 text-center text-sm font-semibold text-white"
+        >
+          카카오맵에서 보기
+        </a>
+      )}
+    </div>
+  );
+}
+
+function Info({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <h2 className="mb-2 text-sm font-bold text-slate-800">{title}</h2>
+      <dl className="flex flex-col gap-1.5">{children}</dl>
+    </section>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <dt className="shrink-0 text-slate-400">{label}</dt>
+      <dd className="text-right text-slate-700">{value}</dd>
+    </div>
+  );
+}
