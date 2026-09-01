@@ -33,6 +33,8 @@ type SeedRestaurant = {
   close_time: string;
   kakaomap_url: string | null;
   photo_url: string | null;
+  lat: number | null;
+  lng: number | null;
 };
 
 function requiredInteger(value: string, field: string): number {
@@ -68,6 +70,13 @@ function parseClosedDays(value: string): number[] {
 
 function nullable(value: string): string | null {
   return value.trim() === "" ? null : value.trim();
+}
+
+function parseFloatOpt(value: string, field: string): number | null {
+  if (value.trim() === "") return null;
+  const n = Number(value);
+  if (Number.isNaN(n)) throw new Error(`${field}: 숫자가 아닙니다`);
+  return n;
 }
 
 function validateRow(row: Record<string, string>): SeedRestaurant {
@@ -121,6 +130,8 @@ function validateRow(row: Record<string, string>): SeedRestaurant {
     close_time: row.close_time?.trim() || "21:00",
     kakaomap_url: nullable(row.kakaomap_url ?? ""),
     photo_url: nullable(row.photo_url ?? ""),
+    lat: parseFloatOpt(row.lat ?? "", "lat"),
+    lng: parseFloatOpt(row.lng ?? "", "lng"),
   };
 }
 

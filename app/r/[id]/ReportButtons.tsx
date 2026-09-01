@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { getDeviceId } from "@/lib/deviceId";
 import { getBrowserClient } from "@/lib/supabaseClient";
 
 const LEVELS: Array<{ v: 0 | 5 | 15; label: string }> = [
@@ -12,15 +13,6 @@ const LEVELS: Array<{ v: 0 | 5 | 15; label: string }> = [
 ];
 
 const DEDUP_MS = 10 * 60 * 1000; // 동일 기기 10분 내 재제보 방지
-
-function getDeviceId(): string {
-  let id = localStorage.getItem("device_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("device_id", id);
-  }
-  return id;
-}
 
 export default function ReportButtons({ restaurantId }: { restaurantId: string }) {
   const router = useRouter();
@@ -46,20 +38,26 @@ export default function ReportButtons({ restaurantId }: { restaurantId: string }
       return;
     }
     setPending(level);
-    const { error } = await getBrowserClient()
-      .from("wait_reports")
-      .insert({ restaurant_id: restaurantId, level, device_id: getDeviceId() });
-    setPending(null);
+    try {
+      const insert = getBrowserClient()
+        .from("wait_reports")
+        .insert({ restaurant_id: restaurantId, level, device_id: getDeviceId() });
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("응답 지연(타임아웃)")), 10000),
+      );
+      const { error } = (await Promise.race([insert, timeout])) as { error: { message: string } | null };
+      if (error) throw new Error(error.message);
 
-    if (error) {
-      flash("제보에 실패했어요. 잠시 후 다시");
-      return;
+      const until = Date.now() + DEDUP_MS;
+      localStorage.setItem(`report_${restaurantId}`, String(until));
+      setBlockedUntil(until);
+      flash("제보 감사합니다");
+      router.refresh(); // 서버 컴포넌트 재계산 → 신호등 반영
+    } catch (e) {
+      flash(`제보 실패: ${e instanceof Error ? e.message : "네트워크 오류"}`);
+    } finally {
+      setPending(null); // 성공/실패/타임아웃 무엇이든 잠금 해제
     }
-    const until = Date.now() + DEDUP_MS;
-    localStorage.setItem(`report_${restaurantId}`, String(until));
-    setBlockedUntil(until);
-    flash("제보 감사합니다 🙏");
-    router.refresh(); // 서버 컴포넌트 재계산 → 신호등 반영
   }
 
   return (

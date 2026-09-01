@@ -8,10 +8,10 @@ export interface Restaurant {
   id: string;
   name: string;
   category: string;
-  walk_min: number;
-  price_min: number;
-  price_max: number;
-  solo_status: SoloStatus;
+  walk_min: number | null;
+  price_min: number | null;
+  price_max: number | null;
+  solo_status: SoloStatus | null; // null = 미조사(아직 아무도 안 알려줌)
   solo_note: string | null;
   wait_1200: WaitLevel;
   wait_1230: WaitLevel;
@@ -25,6 +25,8 @@ export interface Restaurant {
   close_time: string;
   kakaomap_url: string | null;
   photo_url: string | null;
+  lat: number | null;
+  lng: number | null;
   updated_at: string;
 }
 
@@ -32,6 +34,14 @@ export interface WaitReport {
   id: string;
   restaurant_id: string;
   level: Exclude<WaitLevel, null>;
+  device_id: string;
+  created_at: string;
+}
+
+export interface SoloReport {
+  id: string;
+  restaurant_id: string;
+  status: SoloStatus;
   device_id: string;
   created_at: string;
 }

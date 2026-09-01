@@ -1,10 +1,10 @@
-name,category,walk_min,price_min,price_max,solo_status,solo_note,wait_1200,wait_1230,order_type,self_bar,noise_level,staff_talk,signature,closed_days,open_time,close_time,kakaomap_url,photo_url
-탕화쿵푸 문정동점,마라탕,7,6000,15000,green,"혼밥 눈치 없임 가능, 자리 웬만하면 점심에 있음",0,0,staff_call,true,2,1,마라탕,,,,,
-온달토종순대국,한식,4,9000,12000,green,"1인 테이블 많아 혼밥 편함",5,5,staff_call,true,2,2,순대국밥,,,,,
-역전우동0410 문정점,일식,5,5000,11000,green,"입구 바 자리에서 혼밥 가능",5,15,kiosk,true,2,1,가락국수,,,,,
-계란집,양식,6,8000,13000,green,"카운터석 있어 혼밥 편함",0,5,table_tablet,false,2,2,오므라이스,,,,,
-쇼쿠토 문정점,일식,7,12000,20000,green,"카이센동 바 자리 혼밥 가능",0,5,kiosk,false,2,1,카이센동,,,,,
-흥도식당,한식,9,9000,14000,yellow,"점심 웨이팅 잦고 합석 가능성",15,15,staff_call,false,3,2,돈까스,,,,,
-호또멘,일식,8,9000,15000,yellow,"테이블 위주라 혼밥 눈치 약간",5,15,kiosk,true,3,1,돈코츠라멘,,,,,
-일루,한식,6,11000,13000,yellow,"한식뷔페, 혼밥 가능하나 점심 붐빔",15,15,staff_call,true,3,2,한식뷔페,,,,,
-위례 두끼 문정점,분식,10,12000,15000,red,"떡볶이 뷔페라 1인 입장 부담",15,15,table_tablet,true,3,3,즉석떡볶이,,,,,
+name,category,walk_min,price_min,price_max,solo_status,solo_note,wait_1200,wait_1230,order_type,self_bar,noise_level,staff_talk,signature,closed_days,open_time,close_time,kakaomap_url,photo_url,lat,lng
+탕화쿵푸 문정동점,마라탕,7,6000,15000,green,"혼밥 눈치 없임 가능, 자리 웬만하면 점심에 있음",0,0,staff_call,true,2,1,마라탕,,,,,,37.48538,127.11930
+온달토종순대국,한식,4,9000,12000,green,"1인 테이블 많아 혼밥 편함",5,5,staff_call,true,2,2,순대국밥,,,,,,37.48490,127.11980
+역전우동0410 문정점,일식,5,5000,11000,green,"입구 바 자리에서 혼밥 가능",5,15,kiosk,true,2,1,가락국수,,,,,,37.48560,127.11840
+계란집,양식,6,8000,13000,green,"카운터석 있어 혼밥 편함",0,5,table_tablet,false,2,2,오므라이스,,,,,,37.48511,127.12010
+쇼쿠토 문정점,일식,7,12000,20000,green,"카이센동 바 자리 혼밥 가능",0,5,kiosk,false,2,1,카이센동,,,,,,37.48575,127.11900
+흥도식당,한식,9,9000,14000,yellow,"점심 웨이팅 잦고 합석 가능성",15,15,staff_call,false,3,2,돈까스,,,,,,37.48558,127.12095
+호또멘,일식,8,9000,15000,yellow,"테이블 위주라 혼밥 눈치 약간",5,15,kiosk,true,3,1,돈코츠라멘,,,,,,37.48517,127.11693
+일루,한식,6,11000,13000,yellow,"한식뷔페, 혼밥 가능하나 점심 붐빔",15,15,staff_call,true,3,2,한식뷔페,,,,,,37.48600,127.11870
+위례 두끼 문정점,분식,10,12000,15000,red,"떡볶이 뷔페라 1인 입장 부담",15,15,table_tablet,true,3,3,즉석떡볶이,,,,,,37.48505,127.12060

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { getSignal, getWaitInfo, isQuickMeal } from "./signal";
-import type { Restaurant, SoloStatus, WaitLevel, WaitReport } from "./types";
+import { effectiveSolo, getSignal, getWaitInfo, isQuickMeal } from "./signal";
+import type { Restaurant, SoloReport, SoloStatus, WaitLevel, WaitReport } from "./types";
 
 // 기준 시각: 2026-08-21(금) 12:00 KST = 03:00 UTC
 const FRI_1200 = new Date("2026-08-21T03:00:00Z");
@@ -30,6 +30,8 @@ function makeRestaurant(overrides: Partial<Restaurant> = {}): Restaurant {
     close_time: "21:00",
     kakaomap_url: null,
     photo_url: null,
+    lat: null,
+    lng: null,
     updated_at: "2026-08-21T00:00:00Z",
     ...overrides,
   };
@@ -151,10 +153,10 @@ describe("gray 판정", () => {
     const r = makeRestaurant({ closed_days: [5] }); // 금요일 휴무
     expect(getSignal(r, [], FRI_1200).color).toBe("gray");
   });
-  it("영업시간 밖이면 gray", () => {
-    const r = makeRestaurant({ open_time: "11:00", close_time: "21:00" });
+  it("영업시간 밖이어도 혼밥 색은 보인다 (gray 아님)", () => {
+    const r = makeRestaurant({ solo_status: "green", open_time: "11:00", close_time: "21:00" });
     const at2200 = new Date("2026-08-21T13:00:00Z"); // 22:00 KST
-    expect(getSignal(r, [], at2200).color).toBe("gray");
+    expect(getSignal(r, [], at2200).color).toBe("green");
   });
 });
 
@@ -181,14 +183,44 @@ describe("getWaitInfo — 웨이팅 신뢰도(근거·개수·신선도)", () =>
   });
 });
 
-describe("isQuickMeal — 빨리 먹기 좋은가", () => {
+describe("미조사(solo_status null) 판정", () => {
+  it("solo_status가 null이면 gray '정보 없음'", () => {
+    const r = makeRestaurant({ solo_status: null });
+    const s = getSignal(r, [], FRI_1200);
+    expect(s.color).toBe("gray");
+    expect(s.label).toBe("정보 없음");
+  });
+});
+
+describe("effectiveSolo — 혼밥 크라우드소싱 집계", () => {
+  const soloReport = (status: SoloStatus, rid = "r1"): SoloReport => ({
+    id: `s-${status}-${Math.round(Math.random() * 1e6)}`,
+    restaurant_id: rid,
+    status,
+    device_id: "d",
+    created_at: FRI_1200.toISOString(),
+  });
+  it("시드 값이 있으면 그걸 우선", () => {
+    expect(effectiveSolo(makeRestaurant({ solo_status: "yellow" }), [soloReport("red")])).toBe("yellow");
+  });
+  it("시드 값 없으면 제보 최다득표", () => {
+    const r = makeRestaurant({ solo_status: null });
+    const reports = [soloReport("green"), soloReport("green"), soloReport("red")];
+    expect(effectiveSolo(r, reports)).toBe("green");
+  });
+  it("시드 값도 제보도 없으면 null(미조사)", () => {
+    expect(effectiveSolo(makeRestaurant({ solo_status: null }), [])).toBeNull();
+  });
+});
+
+describe("isQuickMeal — 음식이 빨리 나오는가", () => {
   it("빠른 카테고리(국밥)면 true", () => {
     expect(isQuickMeal(makeRestaurant({ category: "국밥" }))).toBe(true);
   });
-  it("키오스크 + 셀프바 조합이면 true", () => {
-    expect(isQuickMeal(makeRestaurant({ category: "양식", order_type: "kiosk", self_bar: true }))).toBe(true);
+  it("키오스크 주문이면 true", () => {
+    expect(isQuickMeal(makeRestaurant({ category: "양식", order_type: "kiosk", self_bar: false }))).toBe(true);
   });
-  it("느린 카테고리 + 직원주문 + 셀프바 없음이면 false", () => {
-    expect(isQuickMeal(makeRestaurant({ category: "이탈리안", order_type: "staff_call", self_bar: false }))).toBe(false);
+  it("느린 카테고리 + 직원주문이면 false (셀프바 있어도 무관)", () => {
+    expect(isQuickMeal(makeRestaurant({ category: "이탈리안", order_type: "staff_call", self_bar: true }))).toBe(false);
   });
 });

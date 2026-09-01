@@ -11,3 +11,32 @@ body {
   background: #ffffff;
   color: #171717;
 }
+
+/* 지도 내 위치 표시 (파란 점 + 펄스) */
+.honbab-mypos {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+}
+.honbab-mypos::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.25);
+  animation: honbab-pulse 2s ease-out infinite;
+}
+@keyframes honbab-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}

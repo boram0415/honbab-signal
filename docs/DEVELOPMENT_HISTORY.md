@@ -332,3 +332,28 @@ PRD §2 범위 밖이지만 사용자 요청으로 추가. **신호등 색 로�
 
 - 테스트 33개(+6) 통과, 타입검사·빌드 ✅
 - dev: ⚡빨리 필터 동작(9곳→4곳), 배지·신뢰도 렌더 확인. 브라우저 실제 제보 6건으로 "실시간" 배지 동작 확인.
+
+## 13. 라벨/로직 변경 + PWA(5단계) — 같은 세션에서 완료
+
+### 빨리먹기 → "빨리 나와요"(음식속도)로 의미 변경
+
+사용자 피드백: "빨리 먹기"가 모호(음식이 빨리 나온다는 건지). 의미를 **"음식이 빨리 나옴(조리·제공 속도)"** 으로 확정.
+
+- `lib/signal.ts` `isQuickMeal`: 셀프바 가점 제거(자리 회전이지 음식속도 아님). **조리 빠른 메뉴 정규식 OR 키오스크** 로 단순화. 돈까스(주문후 튀김)는 빠른목록에서 제외.
+- 라벨: 필터 칩 `빨리 먹기`→`빨리 나와요`, 카드/상세 배지 `⚡ 빨리`→`⚡ 빨리 나옴`.
+- 테스트 갱신(33개 통과).
+
+### PWA (PRD §6)
+
+- `app/manifest.ts` — name/short_name/description/start_url/display=standalone/background_color/theme_color(#10b981)/icons. `/manifest.webmanifest`로 서빙(200, application/manifest+json).
+- `app/icon.tsx`(512) + `app/apple-icon.tsx`(180) — `next/og`의 ImageResponse로 세로형 3구 신호등 아이콘을 코드 생성(별도 이미지 파일 없음). 각각 `/icon`, `/apple-icon`로 PNG 서빙.
+- `app/layout.tsx` — `metadata.manifest`, `metadata.appleWebApp`(iOS 홈화면 앱), `viewport.themeColor` 추가. (Next 15는 themeColor를 viewport export로 옮김)
+- 서비스워커/오프라인 캐싱은 PRD대로 범위 밖(미구현).
+
+### 로컬 시연 (ngrok, 임시)
+
+- 프로덕션 빌드 + `next start`(3000) + `ngrok http 3000`으로 폰 접근 시연. URL: https://ferry-skincare-leggings.ngrok-free.dev (ngrok 세션 유지 동안만 유효, 껐다켜면 변경). **영구 배포 아님** — Vercel 배포는 미완.
+
+### 남은 것
+
+- **Vercel 영구 배포**(ngrok은 임시), **실데이터 반영**(현재 데모 9곳), service_role 키 rotate, 옛 통화리스트 CSV 정리.

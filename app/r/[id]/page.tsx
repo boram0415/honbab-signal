@@ -1,17 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getSignal, getWaitInfo, isQuickMeal } from "@/lib/signal";
+import { ADDRESSES } from "@/lib/addresses";
+import { DEMO_COORDS } from "@/lib/demoCoords";
+import { PHONES } from "@/lib/phones";
+import { effectiveSolo, getSignal, getSummary, getWaitInfo, isQuickMeal } from "@/lib/signal";
 import { createServerClient } from "@/lib/supabaseServer";
 import { CHIP, TrafficLight } from "@/app/TrafficLight";
-import type { Restaurant, WaitReport } from "@/lib/types";
+import { Thumb } from "@/app/Thumb";
+import { HeartButton } from "@/app/HeartButton";
+import type { Restaurant, SoloReport, SoloStatus, WaitReport } from "@/lib/types";
 
 import ReportButtons from "./ReportButtons";
+import SoloReportButtons from "./SoloReportButtons";
 
 export const dynamic = "force-dynamic";
 
 const DAY = ["일", "월", "화", "수", "목", "금", "토"];
-const SOLO_TEXT: Record<Restaurant["solo_status"], string> = {
+const SOLO_TEXT: Record<SoloStatus, string> = {
   green: "1인석·바 있음, 혼자 가도 편함",
   yellow: "1인석은 없지만 혼자 가능 (약간 눈치)",
   red: "평일 점심 1인 입장 어려움",
@@ -30,6 +36,11 @@ function won(n: number) {
 function hhmm(t: string) {
   return (t || "").slice(0, 5);
 }
+function priceText(r: Restaurant) {
+  return r.price_min != null && r.price_max != null
+    ? `${won(r.price_min)}~${won(r.price_max)}원`
+    : "정보 없음";
+}
 
 export default async function Detail({
   params,
@@ -47,17 +58,23 @@ export default async function Detail({
     .maybeSingle();
 
   if (!restaurant) notFound();
-  const r = restaurant as Restaurant;
 
-  const { data: reportData } = await supabase
-    .from("wait_reports")
-    .select("*")
-    .eq("restaurant_id", id);
+  const [{ data: reportData }, { data: soloData }] = await Promise.all([
+    supabase.from("wait_reports").select("*").eq("restaurant_id", id),
+    supabase.from("solo_reports").select("*").eq("restaurant_id", id),
+  ]);
   const reports = (reportData ?? []) as WaitReport[];
+  const soloReports = (soloData ?? []) as SoloReport[];
+
+  // 크라우드소싱 반영
+  const raw = restaurant as Restaurant;
+  const r: Restaurant = { ...raw, solo_status: effectiveSolo(raw, soloReports) };
+  const isMissing = r.solo_status == null;
 
   const signal = getSignal(r, reports, now);
   const wait = getWaitInfo(r, reports, now);
   const quick = isQuickMeal(r);
+  const summary = getSummary(r);
 
   const waitConfidence =
     wait.source === "report"
@@ -71,6 +88,12 @@ export default async function Detail({
       ? r.closed_days.map((d) => DAY[d]).join("·") + "요일"
       : "휴무 없음";
 
+  const coord = DEMO_COORDS[r.name] ?? null;
+  const phone = PHONES[r.name] ?? null;
+  const directionsUrl = coord
+    ? `https://map.kakao.com/link/to/${encodeURIComponent(r.name)},${coord[0]},${coord[1]}`
+    : null;
+
   return (
     <div className="pb-24">
       <Link href="/" className="inline-block py-2 text-sm text-slate-500">
@@ -78,16 +101,26 @@ export default async function Detail({
       </Link>
 
       <div className="mt-1 flex items-center gap-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{r.name}</h1>
+        <h1 className="flex-1 text-2xl font-bold tracking-tight text-slate-900">{r.name}</h1>
         {quick && (
           <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
-            ⚡ 빨리
+            빨리 나옴
           </span>
         )}
+        <HeartButton id={r.id} big />
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        {r.category} · 도보 {r.walk_min}분 · {won(r.price_min)}~{won(r.price_max)}원
+        {r.category}
+        {r.walk_min != null ? ` · 도보 ${r.walk_min}분` : ""}
+        {r.price_min != null && r.price_max != null
+          ? ` · ${won(r.price_min)}~${won(r.price_max)}원`
+          : ""}
       </p>
+      {summary && (
+        <p className="mt-2 text-[15px] font-semibold text-slate-800">“{summary}”</p>
+      )}
+
+      <Thumb url={r.photo_url} className="mt-3 h-48 w-full rounded-2xl" />
 
       {/* 큰 신호등 + 판정 이유 */}
       <section className="mt-4 flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -101,21 +134,71 @@ export default async function Detail({
             {signal.label}
           </span>
           <p className="mt-1.5 text-sm text-slate-600">{signal.reason}</p>
-          <p className="mt-1 text-xs text-slate-400">{waitConfidence}</p>
+          {!isMissing && <p className="mt-1 text-xs text-slate-400">{waitConfidence}</p>}
         </div>
       </section>
 
-      {/* 웨이팅 원탭 제보 */}
-      <section className="mt-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-        <ReportButtons restaurantId={r.id} />
+      {(phone || directionsUrl) && (
+        <div className={`mt-3 grid gap-2 ${phone && directionsUrl ? "grid-cols-2" : "grid-cols-1"}`}>
+          {phone && (
+            <a
+              href={`tel:${phone}`}
+              className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-800 active:scale-[0.98]"
+            >
+              전화
+            </a>
+          )}
+          {directionsUrl && (
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-2xl bg-slate-900 py-3 text-center text-sm font-semibold text-white active:scale-[0.98]"
+            >
+              길찾기
+            </a>
+          )}
+        </div>
+      )}
+
+      <a
+        href={`https://map.naver.com/p/search/${encodeURIComponent(r.name + " 문정")}`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-2 block rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 active:scale-[0.98]"
+      >
+        네이버 리뷰 보기
+      </a>
+
+      {/* 혼밥 크라우드소싱 제보 (미조사면 강조) */}
+      <section
+        className={`mt-3 rounded-2xl border p-5 shadow-sm ${isMissing ? "border-emerald-200 bg-emerald-50" : "border-slate-100 bg-white"}`}
+      >
+        {isMissing && (
+          <p className="mb-3 text-sm leading-relaxed text-emerald-800">
+            아직 아무도 안 알려준 집이에요. <br />
+            가보셨다면 알려주세요 — 같은 점심을 고민하는 옆자리 동료에게 큰 힘이 됩니다.
+          </p>
+        )}
+        <SoloReportButtons restaurantId={r.id} />
       </section>
+
+      {/* 웨이팅 원탭 제보 — 혼밥 정보가 있을 때만 의미 있음 */}
+      {!isMissing && (
+        <section className="mt-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <ReportButtons restaurantId={r.id} />
+        </section>
+      )}
 
       {/* 혼밥 정보 */}
       <Info title="혼밥 정보">
-        <Row label="혼밥 난이도" value={SOLO_TEXT[r.solo_status]} />
+        <Row
+          label="혼밥 난이도"
+          value={r.solo_status ? SOLO_TEXT[r.solo_status] : "아직 정보 없음"}
+        />
         {r.solo_note && <Row label="메모" value={r.solo_note} />}
         <Row label="주문 방식" value={r.order_type ? ORDER_TEXT[r.order_type] : "정보 없음"} />
-        <Row label="셀프바" value={r.self_bar ? "있음 (물·반찬 셀프)" : "없음"} />
+        <Row label="셀프바" value={r.self_bar ? "있음 (물·반찬 셀프)" : "정보 없음"} />
       </Info>
 
       {/* 분위기 */}
@@ -127,7 +210,8 @@ export default async function Detail({
       {/* 기본 정보 */}
       <Info title="기본 정보">
         {r.signature && <Row label="대표 메뉴" value={r.signature} />}
-        <Row label="가격" value={`${won(r.price_min)}~${won(r.price_max)}원`} />
+        {ADDRESSES[r.name] && <Row label="위치" value={ADDRESSES[r.name]} />}
+        <Row label="가격" value={priceText(r)} />
         <Row label="영업시간" value={`${hhmm(r.open_time)}~${hhmm(r.close_time)}`} />
         <Row label="휴무" value={closed} />
       </Info>

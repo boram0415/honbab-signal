@@ -1,4 +1,11 @@
-import type { Restaurant, SignalColor, SoloStatus, WaitLevel, WaitReport } from "./types";
+import type {
+  Restaurant,
+  SignalColor,
+  SoloReport,
+  SoloStatus,
+  WaitLevel,
+  WaitReport,
+} from "./types";
 
 export interface Signal {
   color: SignalColor;
@@ -65,11 +72,6 @@ function getKst(now: Date): { day: number; minutes: number } {
   return { day: weekday[map.weekday], minutes: hour * 60 + minute };
 }
 
-function parseHm(value: string): number {
-  const [h, m] = value.split(":");
-  return parseInt(h, 10) * 60 + parseInt(m, 10);
-}
-
 // PRD 3.2: 유효 제보 최우선(최근 3건 최댓값), 없으면 시간대 기본값, 그 밖은 null
 // + 어떤 근거로 나온 값인지(source)와 신뢰도(개수·신선도)를 함께 반환
 export function getWaitInfo(
@@ -117,20 +119,20 @@ export function getSignal(
   reports: WaitReport[],
   now: Date,
 ): Signal {
-  const { day, minutes } = getKst(now);
+  const solo = restaurant.solo_status;
+  if (solo == null) {
+    // 미조사 — 아직 아무도 혼밥 정보를 안 알려준 집
+    return { color: "gray", label: "정보 없음", reason: "아직 아무도 안 알려준 집이에요" };
+  }
+
+  const { day } = getKst(now);
 
   if (restaurant.closed_days.includes(day)) {
     return { color: "gray", label: "오늘 휴무", reason: "오늘은 쉬는 날이에요" };
   }
 
-  const open = parseHm(restaurant.open_time);
-  const close = parseHm(restaurant.close_time);
-  if (minutes < open || minutes >= close) {
-    return { color: "gray", label: "영업 전·후", reason: "지금은 영업시간이 아니에요" };
-  }
-
+  // 영업시간 밖이어도 혼밥 색은 보여준다 (크라우드소싱 색이 밤에 가려지지 않게).
   const { level } = getWaitInfo(restaurant, reports, now);
-  const solo = restaurant.solo_status;
   const color: SoloStatus = level === null ? solo : worse(solo, waitColor(level));
 
   return {
@@ -140,15 +142,45 @@ export function getSignal(
   };
 }
 
-// 혼자 빨리 먹고 나오기 좋은가 (사무직 점심용 속도 추정)
-// 빠른 카테고리(국밥/분식/면류 등)면 그 자체로, 아니면 키오스크+셀프바 조합으로 판정
-const QUICK_CATEGORY =
-  /국밥|국수|칼국수|냉면|분식|김밥|우동|라멘|라면|덮밥|돈까스|마라탕|샐러드|죽|백반|도시락|쌀국수|버거|샌드/;
+// 크라우드소싱된 혼밥 제보에서 유효 solo_status를 뽑는다.
+// 관리자/시드 값(restaurant.solo_status)이 있으면 그걸 우선, 없으면 제보 최다득표, 둘 다 없으면 null(미조사).
+export function effectiveSolo(
+  restaurant: Restaurant,
+  soloReports: SoloReport[],
+): SoloStatus | null {
+  if (restaurant.solo_status != null) return restaurant.solo_status;
+  const votes = soloReports.filter((s) => s.restaurant_id === restaurant.id);
+  if (votes.length === 0) return null;
+  const count: Record<SoloStatus, number> = { green: 0, yellow: 0, red: 0 };
+  for (const v of votes) count[v.status] += 1;
+  return (Object.keys(count) as SoloStatus[]).reduce((a, b) =>
+    count[b] > count[a] ? b : a,
+  );
+}
+
+// 음식이 빨리 나오는가 (조리·제공 속도)
+// 조리가 빠른 메뉴류(국밥/국수/분식/덮밥 등)이거나 키오스크(주문 즉시 접수)면 빨리 나온다고 본다.
+// 셀프바(물·반찬 셀프)는 '자리 회전'과 관련이라 음식 제공 속도와 무관 → 제외.
+const FAST_SERVED_CATEGORY =
+  /국밥|국수|칼국수|냉면|분식|김밥|우동|라멘|라면|덮밥|마라탕|죽|백반|도시락|쌀국수|토스트|샌드|버거|샐러드/;
 
 export function isQuickMeal(restaurant: Restaurant): boolean {
-  let score = 0;
-  if (QUICK_CATEGORY.test(restaurant.category)) score += 2;
-  if (restaurant.order_type === "kiosk") score += 1;
-  if (restaurant.self_bar) score += 1;
-  return score >= 2;
+  return (
+    FAST_SERVED_CATEGORY.test(restaurant.category) ||
+    restaurant.order_type === "kiosk"
+  );
+}
+
+// 우리 데이터(혼밥 상태 + 빨리 + 카테고리)로 자동 생성하는 한줄 요약. 미조사면 null.
+export function getSummary(restaurant: Restaurant): string | null {
+  const solo = restaurant.solo_status;
+  if (solo == null) return null;
+  const cat = restaurant.category;
+  const quick = isQuickMeal(restaurant);
+  if (solo === "red") return `여럿이 가기 좋은 ${cat} · 혼밥은 어려운 편`;
+  if (solo === "green")
+    return quick ? `혼자 가기 편하고 빨리 나오는 ${cat}` : `혼자 가기 편한 ${cat}`;
+  return quick
+    ? `혼자도 가능하고 빨리 나오는 ${cat} · 약간 눈치`
+    : `혼자도 가능한 ${cat} · 약간 눈치`;
 }
