@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 export type Summary = {
@@ -34,11 +35,18 @@ export default function AdminDashboard({
   messages: MsgItem[];
 }) {
   const [tab, setTab] = useState<"summary" | "suggest" | "chat">("summary");
+  const router = useRouter();
+
+  // 서버 데이터를 15초마다 다시 당겨온다(탭 상태는 유지) → 채팅/제보 자동 갱신
+  useEffect(() => {
+    const t = setInterval(() => router.refresh(), 15000);
+    return () => clearInterval(t);
+  }, [router]);
 
   return (
     <div className="mx-auto max-w-[720px] pb-16">
       <h1 className="mb-1 text-lg font-bold">혼밥신호등 · 백오피스</h1>
-      <p className="mb-3 text-xs text-slate-400">시간은 한국시간(KST) · 새로고침하면 최신</p>
+      <p className="mb-3 text-xs text-slate-400">시간은 한국시간(KST) · 15초마다 자동 갱신</p>
 
       <div className="sticky top-0 z-10 -mx-4 mb-3 flex gap-1 bg-white/90 px-4 py-2 backdrop-blur">
         <Tab on={tab === "summary"} onClick={() => setTab("summary")}>

@@ -21,6 +21,10 @@ export default function InstallPrompt() {
     if (standalone) return;
     if (sessionStorage.getItem("honbab_install_dismiss") === "1") return;
 
+    // 모바일에서만 설치 안내(PC 웹은 홈화면 추가가 의미 없어 배너 안 띄움)
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile) return;
+
     const onBip = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BIPEvent);
