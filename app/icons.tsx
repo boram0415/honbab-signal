@@ -1,17 +1,20 @@
 export function HeartIcon({
   filled,
   className = "",
+  color,
 }: {
   filled: boolean;
   className?: string;
+  color?: string;
 }) {
+  const c = color ?? "#f43f5e";
   return (
     <svg
       viewBox="0 0 24 24"
       className={className}
       aria-hidden
-      fill={filled ? "#f43f5e" : "none"}
-      stroke={filled ? "#f43f5e" : "#cbd5e1"}
+      fill={filled ? c : "none"}
+      stroke={filled ? c : "#cbd5e1"}
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
