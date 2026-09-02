@@ -5,6 +5,7 @@ import "./globals.css";
 import VisitLogger from "./VisitLogger";
 import RegisterSW from "./RegisterSW";
 import InstallPrompt from "./InstallPrompt";
+import ScrollTop from "./ScrollTop";
 
 export const metadata: Metadata = {
   title: "혼밥 신호등",
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           {children}
         </main>
         <InstallPrompt />
+        <ScrollTop />
       </body>
     </html>
   );

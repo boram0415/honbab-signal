@@ -78,7 +78,10 @@ export default function HomeClient({
             <button
               key={v}
               type="button"
-              onClick={() => setView(v)}
+              onClick={() => {
+                setView(v);
+                window.scrollTo(0, 0); // 탭 전환 시 항상 맨 위로
+              }}
               className={`flex-1 rounded-full py-1.5 ${view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
             >
               {v === "list" ? "목록" : v === "map" ? "지도" : "랭킹"}
