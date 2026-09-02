@@ -96,7 +96,14 @@ export default function KakaoMap({
     if (!kakao || !map || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const loc = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+        const { latitude, longitude } = pos.coords;
+        // 문정동에서 너무 멀면(주로 PC의 IP 위치 부정확) 엉뚱한 핀 대신 무시
+        const km = Math.hypot((longitude - 127.12) * 88, (latitude - 37.4855) * 111);
+        if (km > 5) {
+          if (pan) alert("현재 위치가 문정동에서 멀어요.\nPC에서는 위치가 부정확할 수 있어요 (모바일에서 정확해요).");
+          return;
+        }
+        const loc = new kakao.maps.LatLng(latitude, longitude);
         if (myOverlayRef.current) myOverlayRef.current.setMap(null);
         const el = document.createElement("div");
         el.innerHTML = `<div class="honbab-mypos"></div>`;

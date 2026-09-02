@@ -98,7 +98,13 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
     }
     navigator.geolocation?.getCurrentPosition(
       (pos) => {
-        setMyPos([pos.coords.latitude, pos.coords.longitude]);
+        const { latitude, longitude } = pos.coords;
+        // 문정동에서 너무 멀면(PC IP 위치 부정확) 거리순이 무의미 → 사용 안 함
+        if (meters(latitude, longitude, 37.4855, 127.12) > 5000) {
+          alert("현재 위치가 문정동에서 멀어요.\nPC에서는 위치가 부정확할 수 있어요 (모바일에서 정확해요).");
+          return;
+        }
+        setMyPos([latitude, longitude]);
         setNear(true);
       },
       () => alert("위치 권한을 허용해주세요"),
