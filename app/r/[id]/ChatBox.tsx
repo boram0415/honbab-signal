@@ -49,9 +49,12 @@ export default function ChatBox({ restaurantId }: { restaurantId: string }) {
   useEffect(() => {
     const sb = getBrowserClient();
     let active = true;
+    // 웨이팅 채팅은 시간 민감 → 최근 24시간만 표시(오래된 건 안 보이게, DB는 pg_cron으로 삭제)
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     sb.from("messages")
       .select("*")
       .eq("restaurant_id", restaurantId)
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(50)
       .then(({ data }) => {
@@ -85,6 +88,7 @@ export default function ChatBox({ restaurantId }: { restaurantId: string }) {
         .from("messages")
         .select("*")
         .eq("restaurant_id", restaurantId)
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(50);
       if (active && data) merge((data as Message[]).slice().reverse());
