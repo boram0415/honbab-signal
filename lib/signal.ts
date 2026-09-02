@@ -30,9 +30,9 @@ const LABELS: Record<SoloStatus, string> = {
 };
 
 const SOLO_REASON: Record<SoloStatus, string> = {
-  green: "1인석 있음",
+  green: "혼자 편해요",
   yellow: "혼자 가능(눈치)",
-  red: "1인 입장 어려움",
+  red: "혼밥 어려움",
 };
 
 function waitReason(level: WaitLevel): string {

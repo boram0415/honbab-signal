@@ -45,3 +45,12 @@ export interface SoloReport {
   device_id: string;
   created_at: string;
 }
+
+export interface Message {
+  id: string;
+  restaurant_id: string;
+  device_id: string;
+  nickname: string;
+  body: string;
+  created_at: string;
+}

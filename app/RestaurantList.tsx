@@ -21,7 +21,6 @@ export interface ListItem {
   waitSource: "report" | "default" | "none";
   waitFreshestMin: number | null;
   quick: boolean;
-  hearts: number;
   lat: number | null;
   lng: number | null;
 }
@@ -50,6 +49,7 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
   const [visibleIds, setVisibleIds] = useState<Set<string> | null>(null);
+  const [showGray, setShowGray] = useState(false);
 
   useEffect(() => {
     setSavedSet(readSaved());
@@ -64,6 +64,27 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
       window.removeEventListener("honbab-saved-changed", onSaved);
       window.removeEventListener("honbab-mapbounds", onBounds);
     };
+  }, []);
+
+  // 상세 갔다 뒤로 오면 이전 스크롤 위치 복원 (카드 클릭 시 저장한 값). 한 번 쓰고 지운다.
+  // 리스트가 다 그려질 때까지/Next가 top으로 리셋해도 목표에 닿을 때까지 잠깐 재시도.
+  useEffect(() => {
+    const y = sessionStorage.getItem("honbab_list_scroll");
+    if (y == null) return;
+    sessionStorage.removeItem("honbab_list_scroll");
+    // 회색(미조사) 섹션이 펼쳐진 상태였으면 다시 펼쳐야 그 위치까지 스크롤이 닿는다
+    if (sessionStorage.getItem("honbab_list_showgray") === "1") setShowGray(true);
+    sessionStorage.removeItem("honbab_list_showgray");
+    const target = parseInt(y, 10);
+    let tries = 0;
+    const tick = () => {
+      window.scrollTo(0, target);
+      tries += 1;
+      if (tries < 20 && Math.abs(window.scrollY - target) > 2) {
+        setTimeout(tick, 30);
+      }
+    };
+    requestAnimationFrame(tick);
   }, []);
 
   function toggleNear() {
@@ -103,6 +124,75 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
     return list;
   }, [items, query, savedOnly, savedSet, near, myPos, mapView, visibleIds]);
 
+  // 검색·저장·가까운순 중엔 회색을 접지 않고 결과 그대로 보여준다
+  const filtering = near || savedOnly || query.trim() !== "";
+  const colored = shown.filter((it) => it.color !== "gray");
+  const grayItems = shown.filter((it) => it.color === "gray");
+
+  const card = (it: ListItem) => {
+    const distM =
+      near && myPos && it.lat != null && it.lng != null
+        ? Math.round(meters(myPos[0], myPos[1], it.lat, it.lng))
+        : null;
+    return (
+      <li key={it.id} className="relative">
+        <Link
+          href={`/r/${it.id}`}
+          onClick={() => {
+            sessionStorage.setItem("honbab_list_scroll", String(window.scrollY));
+            sessionStorage.setItem("honbab_list_showgray", showGray ? "1" : "0");
+          }}
+          className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-4 pr-11 shadow-sm transition active:scale-[0.99]"
+        >
+          <div role="img" aria-label={`신호등 ${it.label}`} className="shrink-0">
+            <TrafficLight color={it.color} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="truncate font-semibold text-slate-900">{it.name}</h2>
+              {it.waitSource === "report" ? (
+                <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
+                  실시간 {it.waitFreshestMin}분 전
+                </span>
+              ) : it.waitSource === "default" ? (
+                <span className="shrink-0 rounded-full bg-slate-900/5 px-2 py-0.5 text-[11px] font-medium text-slate-400">
+                  평소 기준
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {it.category}
+              {distM != null
+                ? ` · ${distM >= 1000 ? `${(distM / 1000).toFixed(1)}km` : `${distM}m`}`
+                : it.walkMin != null
+                  ? ` · 도보 ${it.walkMin}분`
+                  : ""}
+              {it.priceMin != null && it.priceMax != null
+                ? ` · ${won(it.priceMin)}~${won(it.priceMax)}원`
+                : ""}
+            </p>
+            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CHIP[it.color]}`}
+              >
+                {it.label}
+              </span>
+              {it.quick && (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
+                  빨리 나옴
+                </span>
+              )}
+              <span className="text-slate-500">{it.reason}</span>
+            </p>
+          </div>
+        </Link>
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <HeartButton id={it.id} />
+        </div>
+      </li>
+    );
+  };
+
   return (
     <div>
       {/* 검색 + 정렬/필터 */}
@@ -141,72 +231,38 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
         <p className="mt-10 text-center text-sm text-slate-400">
           {savedOnly ? "저장한 곳이 없어요. 하트를 눌러 저장해보세요." : "조건에 맞는 식당이 없어요."}
         </p>
+      ) : filtering ? (
+        <ul className="flex flex-col gap-2.5">{shown.map(card)}</ul>
       ) : (
-        <ul className="flex flex-col gap-2.5">
-          {shown.map((it) => {
-            const distM =
-              near && myPos && it.lat != null && it.lng != null
-                ? Math.round(meters(myPos[0], myPos[1], it.lat, it.lng))
-                : null;
-            return (
-              <li key={it.id} className="relative">
-                <Link
-                  href={`/r/${it.id}`}
-                  className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-4 pr-11 shadow-sm transition active:scale-[0.99]"
-                >
-                  <div role="img" aria-label={`신호등 ${it.label}`} className="shrink-0">
-                    <TrafficLight color={it.color} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <h2 className="truncate font-semibold text-slate-900">{it.name}</h2>
-                      {it.waitSource === "report" ? (
-                        <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
-                          실시간 {it.waitFreshestMin}분 전
-                        </span>
-                      ) : it.waitSource === "default" ? (
-                        <span className="shrink-0 rounded-full bg-slate-900/5 px-2 py-0.5 text-[11px] font-medium text-slate-400">
-                          평소 기준
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {it.category}
-                      {distM != null
-                        ? ` · ${distM >= 1000 ? `${(distM / 1000).toFixed(1)}km` : `${distM}m`}`
-                        : it.walkMin != null
-                          ? ` · 도보 ${it.walkMin}분`
-                          : ""}
-                      {it.priceMin != null && it.priceMax != null
-                        ? ` · ${won(it.priceMin)}~${won(it.priceMax)}원`
-                        : ""}
-                    </p>
-                    <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CHIP[it.color]}`}
-                      >
-                        {it.label}
-                      </span>
-                      {it.quick && (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
-                          빨리 나옴
-                        </span>
-                      )}
-                      <span className="text-slate-500">{it.reason}</span>
-                    </p>
-                  </div>
-                </Link>
-                <div className="absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center">
-                  <HeartButton id={it.id} />
-                  {it.hearts > 0 && (
-                    <span className="text-[10px] font-bold text-rose-500">{it.hearts}</span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {colored.length > 0 && (
+            <ul className="flex flex-col gap-2.5">{colored.map(card)}</ul>
+          )}
+          {grayItems.length > 0 && (
+            <div className={colored.length > 0 ? "mt-3" : ""}>
+              <button
+                type="button"
+                onClick={() => setShowGray((v) => !v)}
+                className="flex w-full items-center justify-center rounded-xl border border-dashed border-slate-200 py-2.5 text-xs font-semibold text-slate-400 transition active:scale-[0.99]"
+              >
+                {showGray
+                  ? "아직 조사 안 된 곳 접기"
+                  : `아직 조사 안 된 곳 ${grayItems.length}곳 보기`}
+              </button>
+              {showGray && (
+                <ul className="mt-2.5 flex flex-col gap-2.5">{grayItems.map(card)}</ul>
+              )}
+            </div>
+          )}
+        </>
       )}
+
+      <Link
+        href="/suggest?type=place"
+        className="mt-4 block rounded-xl border border-dashed border-slate-200 py-3 text-center text-xs font-semibold text-slate-400 transition active:scale-[0.99]"
+      >
+        찾는 가게가 없나요? 가게 추가 요청하기
+      </Link>
     </div>
   );
 }

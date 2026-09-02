@@ -39,9 +39,12 @@ export default function ReportButtons({ restaurantId }: { restaurantId: string }
     }
     setPending(level);
     try {
-      const insert = getBrowserClient()
+      const sb = getBrowserClient();
+      const { data: { session } } = await sb.auth.getSession();
+      const dev = session?.user?.id ?? getDeviceId(); // 로그인 시 계정 기준(랭킹 집계용)
+      const insert = sb
         .from("wait_reports")
-        .insert({ restaurant_id: restaurantId, level, device_id: getDeviceId() });
+        .insert({ restaurant_id: restaurantId, level, device_id: dev });
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("응답 지연(타임아웃)")), 10000),
       );

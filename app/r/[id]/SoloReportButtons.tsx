@@ -35,9 +35,12 @@ export default function SoloReportButtons({ restaurantId }: { restaurantId: stri
     }
     setPending(status);
     try {
-      const insert = getBrowserClient()
+      const sb = getBrowserClient();
+      const { data: { session } } = await sb.auth.getSession();
+      const dev = session?.user?.id ?? getDeviceId(); // 로그인 시 계정 기준(랭킹 집계용)
+      const insert = sb
         .from("solo_reports")
-        .insert({ restaurant_id: restaurantId, status, device_id: getDeviceId() });
+        .insert({ restaurant_id: restaurantId, status, device_id: dev });
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("응답 지연(타임아웃)")), 10000),
       );

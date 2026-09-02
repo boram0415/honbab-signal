@@ -11,6 +11,7 @@ import { Thumb } from "@/app/Thumb";
 import { HeartButton } from "@/app/HeartButton";
 import type { Restaurant, SoloReport, SoloStatus, WaitReport } from "@/lib/types";
 
+import ChatBox from "./ChatBox";
 import ReportButtons from "./ReportButtons";
 import SoloReportButtons from "./SoloReportButtons";
 
@@ -18,9 +19,9 @@ export const dynamic = "force-dynamic";
 
 const DAY = ["일", "월", "화", "수", "목", "금", "토"];
 const SOLO_TEXT: Record<SoloStatus, string> = {
-  green: "1인석·바 있음, 혼자 가도 편함",
-  yellow: "1인석은 없지만 혼자 가능 (약간 눈치)",
-  red: "평일 점심 1인 입장 어려움",
+  green: "혼자 가도 편해요",
+  yellow: "혼자 가능 (약간 눈치)",
+  red: "혼밥 어려움",
 };
 const ORDER_TEXT: Record<string, string> = {
   kiosk: "키오스크",
@@ -190,28 +191,34 @@ export default async function Detail({
         </section>
       )}
 
-      {/* 혼밥 정보 */}
-      <Info title="혼밥 정보">
-        <Row
-          label="혼밥 난이도"
-          value={r.solo_status ? SOLO_TEXT[r.solo_status] : "아직 정보 없음"}
-        />
-        {r.solo_note && <Row label="메모" value={r.solo_note} />}
-        <Row label="주문 방식" value={r.order_type ? ORDER_TEXT[r.order_type] : "정보 없음"} />
-        <Row label="셀프바" value={r.self_bar ? "있음 (물·반찬 셀프)" : "정보 없음"} />
-      </Info>
+      {/* 실시간 웨이팅 채팅 (미조사여도 물어볼 수 있게 항상 노출) */}
+      <ChatBox restaurantId={r.id} />
 
-      {/* 분위기 */}
-      <Info title="분위기">
-        <Row label="소음" value={r.noise_level ? NOISE[r.noise_level] : "정보 없음"} />
-        <Row label="직원 말 걸기" value={r.staff_talk ? TALK[r.staff_talk] : "정보 없음"} />
-      </Info>
+      {/* 혼밥 정보 (값 있는 것만) */}
+      {(r.solo_status || r.solo_note || r.order_type || r.self_bar) && (
+        <Info title="혼밥 정보">
+          {r.solo_status && <Row label="혼밥 난이도" value={SOLO_TEXT[r.solo_status]} />}
+          {r.solo_note && <Row label="메모" value={r.solo_note} />}
+          {r.order_type && <Row label="주문 방식" value={ORDER_TEXT[r.order_type]} />}
+          {r.self_bar && <Row label="셀프바" value="있음 (물·반찬 셀프)" />}
+        </Info>
+      )}
+
+      {/* 분위기 (값 있을 때만) */}
+      {(r.noise_level || r.staff_talk) && (
+        <Info title="분위기">
+          {r.noise_level && <Row label="소음" value={NOISE[r.noise_level]} />}
+          {r.staff_talk && <Row label="직원 말 걸기" value={TALK[r.staff_talk]} />}
+        </Info>
+      )}
 
       {/* 기본 정보 */}
       <Info title="기본 정보">
         {r.signature && <Row label="대표 메뉴" value={r.signature} />}
         {ADDRESSES[r.name] && <Row label="위치" value={ADDRESSES[r.name]} />}
-        <Row label="가격" value={priceText(r)} />
+        {r.price_min != null && r.price_max != null && (
+          <Row label="가격" value={priceText(r)} />
+        )}
         <Row label="영업시간" value={`${hhmm(r.open_time)}~${hhmm(r.close_time)}`} />
         <Row label="휴무" value={closed} />
       </Info>
