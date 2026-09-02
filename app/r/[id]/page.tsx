@@ -73,7 +73,7 @@ export default async function Detail({
 
   // 크라우드소싱 반영
   const raw = restaurant as Restaurant;
-  const r: Restaurant = { ...raw, solo_status: effectiveSolo(raw, soloReports) };
+  const r: Restaurant = { ...raw, solo_status: effectiveSolo(raw, soloReports, now) };
   const isMissing = r.solo_status == null;
 
   const signal = getSignal(r, reports, now);
@@ -94,8 +94,11 @@ export default async function Detail({
 
   const coord = DEMO_COORDS[r.name] ?? null;
   const phone = PHONES[r.name] ?? null;
-  const directionsUrl = coord
+  const kakaoDir = coord
     ? `https://map.kakao.com/link/to/${encodeURIComponent(r.name)},${coord[0]},${coord[1]}`
+    : null;
+  const naverDir = coord
+    ? `https://map.naver.com/p/directions/-/${coord[1]},${coord[0]},${encodeURIComponent(r.name)}/-/car`
     : null;
 
   return (
@@ -137,26 +140,32 @@ export default async function Detail({
         </div>
       </section>
 
-      {(phone || directionsUrl) && (
-        <div className={`mt-3 grid gap-2 ${phone && directionsUrl ? "grid-cols-2" : "grid-cols-1"}`}>
-          {phone && (
-            <a
-              href={`tel:${phone}`}
-              className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-800 active:scale-[0.98]"
-            >
-              전화
-            </a>
-          )}
-          {directionsUrl && (
-            <a
-              href={directionsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl bg-slate-900 py-3 text-center text-sm font-semibold text-white active:scale-[0.98]"
-            >
-              길찾기
-            </a>
-          )}
+      {phone && (
+        <a
+          href={`tel:${phone}`}
+          className="mt-3 block rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-800 active:scale-[0.98]"
+        >
+          전화
+        </a>
+      )}
+      {coord && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <a
+            href={kakaoDir!}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-2xl bg-slate-900 py-3 text-center text-sm font-semibold text-white active:scale-[0.98]"
+          >
+            카카오 길찾기
+          </a>
+          <a
+            href={naverDir!}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-800 active:scale-[0.98]"
+          >
+            네이버 길찾기
+          </a>
         </div>
       )}
 
@@ -165,7 +174,7 @@ export default async function Detail({
           href={`https://map.naver.com/p/search/${encodeURIComponent(r.name + " 문정")}`}
           target="_blank"
           rel="noreferrer"
-          className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 active:scale-[0.98]"
+          className="rounded-2xl border border-green-200 bg-green-50 py-3 text-center text-sm font-semibold text-green-700 active:scale-[0.98]"
         >
           네이버 리뷰
         </a>
@@ -173,7 +182,7 @@ export default async function Detail({
           href={`https://map.kakao.com/?q=${encodeURIComponent(r.name + " 문정")}`}
           target="_blank"
           rel="noreferrer"
-          className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 active:scale-[0.98]"
+          className="rounded-2xl border border-yellow-200 bg-yellow-50 py-3 text-center text-sm font-semibold text-yellow-800 active:scale-[0.98]"
         >
           카카오 리뷰
         </a>

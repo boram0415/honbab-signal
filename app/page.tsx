@@ -51,7 +51,7 @@ export default async function Home() {
   // 전체를 크라우드소싱 반영 + 정렬해서 통째로 내려주고, 필터/탭은 클라이언트에서 즉시 처리
   const items: HomeItem[] = restaurants
     .map((raw) => {
-      const r: Restaurant = { ...raw, solo_status: effectiveSolo(raw, soloReports) };
+      const r: Restaurant = { ...raw, solo_status: effectiveSolo(raw, soloReports, now) };
       const own = reports.filter((x) => x.restaurant_id === r.id);
       const signal = getSignal(r, own, now);
       const wait = getWaitInfo(r, own, now);
@@ -82,7 +82,7 @@ export default async function Home() {
       group: foodGroup(r.category),
     }));
 
-  const filledCount = restaurants.filter((r) => effectiveSolo(r, soloReports) !== null).length;
+  const filledCount = restaurants.filter((r) => effectiveSolo(r, soloReports, now) !== null).length;
 
   // 이달의 외식왕 (로그인 기여만: device_id가 profiles.id인 것). 제보 +3, 채팅 +1.
   const nick = new Map<string, string>();

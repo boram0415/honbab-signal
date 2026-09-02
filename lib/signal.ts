@@ -23,12 +23,10 @@ export interface WaitInfo {
   freshestMin: number | null; // 가장 최근 제보 후 경과(분)
 }
 
-const RANK: Record<SoloStatus, number> = { green: 0, yellow: 1, red: 2 };
-
-const LABELS: Record<SoloStatus, string> = {
+const SOLO_LABEL: Record<SoloStatus, string> = {
   green: "혼밥 추천",
   yellow: "혼밥 가능",
-  red: "지금은 붐빔",
+  red: "혼밥 어려움",
 };
 
 const SOLO_REASON: Record<SoloStatus, string> = {
@@ -42,16 +40,6 @@ function waitReason(level: WaitLevel): string {
   if (level === 5) return "웨이팅 5~10분";
   if (level === 15) return "웨이팅 15분+";
   return "웨이팅 정보 없음";
-}
-
-function waitColor(level: Exclude<WaitLevel, null>): SoloStatus {
-  if (level === 0) return "green";
-  if (level === 5) return "yellow";
-  return "red";
-}
-
-function worse(a: SoloStatus, b: SoloStatus): SoloStatus {
-  return RANK[a] >= RANK[b] ? a : b;
 }
 
 // now(UTC 시각)를 한국시간 기준 요일(0=일~6=토)과 자정 기준 분으로 변환
@@ -133,25 +121,31 @@ export function getSignal(
     return { color: "gray", label: "오늘 휴무", reason: "오늘은 쉬는 날이에요" };
   }
 
-  // 영업시간 밖이어도 혼밥 색은 보여준다 (크라우드소싱 색이 밤에 가려지지 않게).
+  // 색은 '혼밥 난이도' 1차원으로만 정한다. 웨이팅은 색에 섞지 않고 배지로 따로 표시(색이 안 깜빡이게).
   const { level } = getWaitInfo(restaurant, reports, now);
-  const color: SoloStatus = level === null ? solo : worse(solo, waitColor(level));
+  const label = SOLO_LABEL[solo];
 
   return {
-    color,
-    label: LABELS[color],
+    color: solo,
+    label,
     reason: `${SOLO_REASON[solo]} · ${waitReason(level)}`,
   };
 }
 
 // 크라우드소싱된 혼밥 제보에서 유효 solo_status를 뽑는다.
-// 관리자/시드 값(restaurant.solo_status)이 있으면 그걸 우선, 없으면 제보 최다득표, 둘 다 없으면 null(미조사).
+// 시드 값 우선, 없으면 "최근 30일" 제보의 최다득표(다수결). 오래된/초반 실수 표는 만료돼 자정된다.
+const SOLO_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function effectiveSolo(
   restaurant: Restaurant,
   soloReports: SoloReport[],
+  now: Date,
 ): SoloStatus | null {
   if (restaurant.solo_status != null) return restaurant.solo_status;
-  const votes = soloReports.filter((s) => s.restaurant_id === restaurant.id);
+  const cutoff = now.getTime() - SOLO_WINDOW_MS;
+  const votes = soloReports.filter(
+    (s) => s.restaurant_id === restaurant.id && new Date(s.created_at).getTime() >= cutoff,
+  );
   if (votes.length === 0) return null;
   const count: Record<SoloStatus, number> = { green: 0, yellow: 0, red: 0 };
   for (const v of votes) count[v.status] += 1;

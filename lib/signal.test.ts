@@ -47,104 +47,92 @@ function report(level: Exclude<WaitLevel, null>, agoMin: number, now: Date): Wai
   };
 }
 
-describe("getSignal — 3.3 판정표 (더 나쁜 쪽 채택)", () => {
-  // 웨이팅은 유효 제보(방금 제출)로 고정, 정보없음은 14:00·제보없음으로 만든다.
-  const cases: Array<[SoloStatus, WaitLevel, string]> = [
-    ["green", 0, "green"],
-    ["green", 5, "yellow"],
-    ["green", 15, "red"],
-    ["green", null, "green"],
-    ["yellow", 0, "yellow"],
-    ["yellow", 5, "yellow"],
-    ["yellow", 15, "red"],
-    ["yellow", null, "yellow"],
-    ["red", 0, "red"],
-    ["red", 5, "red"],
-    ["red", 15, "red"],
-    ["red", null, "red"],
+describe("getSignal — 색은 혼밥 1차원 (웨이팅은 색에 안 섞임)", () => {
+  // 색 = solo_status 그대로. 웨이팅이 뭐든 색은 안 바뀐다.
+  const cases: Array<[SoloStatus, WaitLevel]> = [
+    ["green", 0], ["green", 5], ["green", 15], ["green", null],
+    ["yellow", 0], ["yellow", 5], ["yellow", 15], ["yellow", null],
+    ["red", 0], ["red", 5], ["red", 15], ["red", null],
   ];
-
-  for (const [solo, wait, expected] of cases) {
-    it(`혼밥 ${solo} × 웨이팅 ${wait ?? "정보없음"} → ${expected}`, () => {
+  for (const [solo, wait] of cases) {
+    it(`혼밥 ${solo} × 웨이팅 ${wait ?? "정보없음"} → 색 ${solo}`, () => {
+      const r = makeRestaurant({ solo_status: solo });
       if (wait === null) {
-        const r = makeRestaurant({ solo_status: solo });
-        expect(getSignal(r, [], FRI_1400).color).toBe(expected);
+        expect(getSignal(r, [], FRI_1400).color).toBe(solo);
       } else {
-        const r = makeRestaurant({ solo_status: solo });
-        expect(getSignal(r, [report(wait, 1, FRI_1200)], FRI_1200).color).toBe(expected);
+        expect(getSignal(r, [report(wait, 1, FRI_1200)], FRI_1200).color).toBe(solo);
       }
     });
   }
 
-  it("red는 웨이팅 0이어도 절대 green이 아니다", () => {
-    const r = makeRestaurant({ solo_status: "red" });
-    expect(getSignal(r, [report(0, 1, FRI_1200)], FRI_1200).color).toBe("red");
+  it("웨이팅 붐빔이어도 혼밥 green이면 색은 green (배지로만 표시)", () => {
+    const r = makeRestaurant({ solo_status: "green" });
+    expect(getSignal(r, [report(15, 1, FRI_1200)], FRI_1200).color).toBe("green");
   });
 
-  it("웨이팅 정보 없음이면 라벨에 표기된다", () => {
+  it("웨이팅 문구는 reason에 남는다", () => {
     const r = makeRestaurant({ solo_status: "green" });
+    expect(getSignal(r, [report(15, 1, FRI_1200)], FRI_1200).reason).toContain("웨이팅 15분+");
     expect(getSignal(r, [], FRI_1400).reason).toContain("웨이팅 정보 없음");
   });
 });
 
-describe("시간대 경계 (기본값)", () => {
-  // wait_1200=0(green), wait_1230=15(red)로 두어 경계에서 색이 바뀌게 함
+describe("웨이팅 시간대 경계 (기본값)", () => {
   const r = makeRestaurant({ wait_1200: 0, wait_1230: 15 });
   const at = (hhmmUtc: string) => new Date(`2026-08-21T${hhmmUtc}:00Z`);
 
-  it("11:29 → 기본값 시간대 밖 → 정보없음(green)", () => {
-    expect(getSignal(r, [], at("02:29")).color).toBe("green");
-    expect(getSignal(r, [], at("02:29")).reason).toContain("정보 없음");
+  it("11:29 → 기본값 시간대 밖 → 정보없음", () => {
+    expect(getWaitInfo(r, [], at("02:29")).source).toBe("none");
   });
-  it("11:30 → wait_1200 적용", () => {
-    expect(getSignal(r, [], at("02:30")).reason).toContain("웨이팅 없음");
+  it("11:30 → wait_1200 적용(0)", () => {
+    expect(getWaitInfo(r, [], at("02:30")).level).toBe(0);
   });
-  it("12:14 → 여전히 wait_1200", () => {
-    expect(getSignal(r, [], at("03:14")).reason).toContain("웨이팅 없음");
+  it("12:14 → 여전히 wait_1200(0)", () => {
+    expect(getWaitInfo(r, [], at("03:14")).level).toBe(0);
   });
-  it("12:15 → wait_1230으로 전환(red)", () => {
-    expect(getSignal(r, [], at("03:15")).color).toBe("red");
+  it("12:15 → wait_1230으로 전환(15)", () => {
+    expect(getWaitInfo(r, [], at("03:15")).level).toBe(15);
   });
-  it("13:00 → 여전히 wait_1230", () => {
-    expect(getSignal(r, [], at("04:00")).color).toBe("red");
+  it("13:00 → 여전히 wait_1230(15)", () => {
+    expect(getWaitInfo(r, [], at("04:00")).level).toBe(15);
   });
-  it("13:01 → 기본값 시간대 밖 → 정보없음(green)", () => {
-    expect(getSignal(r, [], at("04:01")).color).toBe("green");
-  });
-});
-
-describe("제보 90분 유효 경계", () => {
-  const r = makeRestaurant({ solo_status: "green", wait_1200: null });
-  it("89분 전 제보는 유효 → red", () => {
-    expect(getSignal(r, [report(15, 89, FRI_1200)], FRI_1200).color).toBe("red");
-  });
-  it("90분 전 제보는 만료(strict >) → green", () => {
-    expect(getSignal(r, [report(15, 90, FRI_1200)], FRI_1200).color).toBe("green");
-  });
-  it("91분 전 제보는 만료 → green", () => {
-    expect(getSignal(r, [report(15, 91, FRI_1200)], FRI_1200).color).toBe("green");
+  it("13:01 → 기본값 시간대 밖 → 정보없음", () => {
+    expect(getWaitInfo(r, [], at("04:01")).source).toBe("none");
   });
 });
 
-describe("최근 3건의 최댓값", () => {
+describe("웨이팅 제보 90분 유효 경계", () => {
+  const r = makeRestaurant({ wait_1200: null });
+  it("89분 전 제보는 유효 → 15", () => {
+    expect(getWaitInfo(r, [report(15, 89, FRI_1200)], FRI_1200).level).toBe(15);
+  });
+  it("90분 전 제보는 만료(strict >) → 정보없음", () => {
+    expect(getWaitInfo(r, [report(15, 90, FRI_1200)], FRI_1200).source).toBe("none");
+  });
+  it("91분 전 제보는 만료 → 정보없음", () => {
+    expect(getWaitInfo(r, [report(15, 91, FRI_1200)], FRI_1200).source).toBe("none");
+  });
+});
+
+describe("웨이팅 최근 3건의 최댓값", () => {
   it("4번째(가장 오래된) 제보는 제외된다", () => {
-    const r = makeRestaurant({ solo_status: "green" });
+    const r = makeRestaurant();
     const reports: WaitReport[] = [
       report(0, 1, FRI_1200),
       report(0, 2, FRI_1200),
       report(0, 3, FRI_1200),
-      report(15, 4, FRI_1200), // 최근 3건 밖 → 무시되어야 함
+      report(15, 4, FRI_1200), // 최근 3건 밖 → 무시
     ];
-    expect(getSignal(r, reports, FRI_1200).color).toBe("green");
+    expect(getWaitInfo(r, reports, FRI_1200).level).toBe(0);
   });
   it("최근 3건 안의 최댓값을 채택한다", () => {
-    const r = makeRestaurant({ solo_status: "green" });
+    const r = makeRestaurant();
     const reports: WaitReport[] = [
       report(0, 1, FRI_1200),
       report(15, 2, FRI_1200),
       report(5, 3, FRI_1200),
     ];
-    expect(getSignal(r, reports, FRI_1200).color).toBe("red");
+    expect(getWaitInfo(r, reports, FRI_1200).level).toBe(15);
   });
 });
 
@@ -192,24 +180,30 @@ describe("미조사(solo_status null) 판정", () => {
   });
 });
 
-describe("effectiveSolo — 혼밥 크라우드소싱 집계", () => {
-  const soloReport = (status: SoloStatus, rid = "r1"): SoloReport => ({
-    id: `s-${status}-${Math.round(Math.random() * 1e6)}`,
+describe("effectiveSolo — 혼밥 크라우드소싱 집계(최근 30일 다수결)", () => {
+  const soloReport = (status: SoloStatus, agoDays = 0, rid = "r1"): SoloReport => ({
+    id: `s-${status}-${agoDays}-${Math.round(Math.random() * 1e6)}`,
     restaurant_id: rid,
     status,
     device_id: "d",
-    created_at: FRI_1200.toISOString(),
+    created_at: new Date(FRI_1200.getTime() - agoDays * 24 * 3600 * 1000).toISOString(),
   });
   it("시드 값이 있으면 그걸 우선", () => {
-    expect(effectiveSolo(makeRestaurant({ solo_status: "yellow" }), [soloReport("red")])).toBe("yellow");
+    expect(effectiveSolo(makeRestaurant({ solo_status: "yellow" }), [soloReport("red")], FRI_1200)).toBe("yellow");
   });
-  it("시드 값 없으면 제보 최다득표", () => {
+  it("시드 값 없으면 최근 제보 최다득표", () => {
     const r = makeRestaurant({ solo_status: null });
     const reports = [soloReport("green"), soloReport("green"), soloReport("red")];
-    expect(effectiveSolo(r, reports)).toBe("green");
+    expect(effectiveSolo(r, reports, FRI_1200)).toBe("green");
+  });
+  it("30일 지난 제보는 제외된다(자정)", () => {
+    const r = makeRestaurant({ solo_status: null });
+    // 옛날 red 2표(40일 전) + 최근 green 1표 → 최근 30일 기준 green
+    const reports = [soloReport("red", 40), soloReport("red", 40), soloReport("green", 1)];
+    expect(effectiveSolo(r, reports, FRI_1200)).toBe("green");
   });
   it("시드 값도 제보도 없으면 null(미조사)", () => {
-    expect(effectiveSolo(makeRestaurant({ solo_status: null }), [])).toBeNull();
+    expect(effectiveSolo(makeRestaurant({ solo_status: null }), [], FRI_1200)).toBeNull();
   });
 });
 
