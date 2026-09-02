@@ -58,6 +58,13 @@ export default function ChatBox({ restaurantId }: { restaurantId: string }) {
         if (active && data) setMessages((data as Message[]).slice().reverse());
       });
 
+    const merge = (rows: Message[]) =>
+      setMessages((prev) => {
+        const ids = new Set(prev.map((m) => m.id));
+        const add = rows.filter((m) => !ids.has(m.id));
+        return add.length ? [...prev, ...add] : prev;
+      });
+
     const channel = sb
       .channel(`msgs:${restaurantId}`)
       .on(
@@ -68,15 +75,24 @@ export default function ChatBox({ restaurantId }: { restaurantId: string }) {
           table: "messages",
           filter: `restaurant_id=eq.${restaurantId}`,
         },
-        (payload) => {
-          const m = payload.new as Message;
-          setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-        },
+        (payload) => merge([payload.new as Message]),
       )
       .subscribe();
 
+    // 폴백: 웹뷰/인앱 브라우저는 WebSocket(실시간)이 막힐 수 있어 4초마다 새 메시지 확인
+    const poll = setInterval(async () => {
+      const { data } = await sb
+        .from("messages")
+        .select("*")
+        .eq("restaurant_id", restaurantId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (active && data) merge((data as Message[]).slice().reverse());
+    }, 4000);
+
     return () => {
       active = false;
+      clearInterval(poll);
       sb.removeChannel(channel);
     };
   }, [restaurantId]);
