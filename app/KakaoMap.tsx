@@ -148,14 +148,33 @@ export default function KakaoMap({
         mapRef.current = map;
         const iw = new kakao.maps.InfoWindow({ removable: true });
 
+        // 같은 건물 좌표에 여러 곳이 포개지는 것 방지: 겹치는 좌표는 작은 원으로 벌림
+        const groups = new Map<string, MapPoint[]>();
+        for (const p of points) {
+          const k = `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+          const g = groups.get(k);
+          if (g) g.push(p);
+          else groups.set(k, [p]);
+        }
+        const jitter = new Map<string, [number, number]>();
+        for (const g of groups.values()) {
+          if (g.length < 2) continue;
+          const R = 0.00011; // 약 12m 반경
+          g.forEach((p, i) => {
+            const a = (2 * Math.PI * i) / g.length;
+            jitter.set(p.id, [Math.sin(a) * R, Math.cos(a) * R]);
+          });
+        }
+
         const markers = points.map((p) => {
           const isSaved = saved.has(p.id);
+          const [dLat, dLng] = jitter.get(p.id) ?? [0, 0];
           const image = new kakao.maps.MarkerImage(
             markerSvg(COLOR[p.color], isSaved),
             new kakao.maps.Size(isSaved ? 20 : 24, isSaved ? 20 : 24),
           );
           const marker = new kakao.maps.Marker({
-            position: new kakao.maps.LatLng(p.lat, p.lng),
+            position: new kakao.maps.LatLng(p.lat + dLat, p.lng + dLng),
             image,
             title: p.name,
           });

@@ -12,6 +12,15 @@ body {
   color: #171717;
 }
 
+/* iOS 사파리: 글자 16px 미만 입력창은 포커스 시 자동 확대됨 → 모바일에서 폼 16px로 고정해 줌 방지 */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* 지도 내 위치 표시 (파란 점 + 펄스) */
 .honbab-mypos {
   position: relative;
