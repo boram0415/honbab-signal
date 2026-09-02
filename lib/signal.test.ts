@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { effectiveSolo, getSignal, getWaitInfo, isQuickMeal } from "./signal";
+import { effectiveSolo, getSignal, getWaitInfo } from "./signal";
 import type { Restaurant, SoloReport, SoloStatus, WaitLevel, WaitReport } from "./types";
 
 // 기준 시각: 2026-08-21(금) 12:00 KST = 03:00 UTC
@@ -210,17 +210,5 @@ describe("effectiveSolo — 혼밥 크라우드소싱 집계", () => {
   });
   it("시드 값도 제보도 없으면 null(미조사)", () => {
     expect(effectiveSolo(makeRestaurant({ solo_status: null }), [])).toBeNull();
-  });
-});
-
-describe("isQuickMeal — 음식이 빨리 나오는가", () => {
-  it("빠른 카테고리(국밥)면 true", () => {
-    expect(isQuickMeal(makeRestaurant({ category: "국밥" }))).toBe(true);
-  });
-  it("키오스크 주문이면 true", () => {
-    expect(isQuickMeal(makeRestaurant({ category: "양식", order_type: "kiosk", self_bar: false }))).toBe(true);
-  });
-  it("느린 카테고리 + 직원주문이면 false (셀프바 있어도 무관)", () => {
-    expect(isQuickMeal(makeRestaurant({ category: "이탈리안", order_type: "staff_call", self_bar: true }))).toBe(false);
   });
 });

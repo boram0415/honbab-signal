@@ -13,7 +13,8 @@ export default function VisitLogger() {
     sb.auth.getSession().then(({ data }) => {
       const uid = data.session?.user?.id ?? null;
       // 하루 1행: PK(device_id, day)로 보장. 같은 날 재접속은 중복키로 조용히 무시.
-      sb.from("visits").insert({ device_id: getDeviceId(), user_id: uid }).then(() => {});
+      const platform = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "mobile" : "web";
+      sb.from("visits").insert({ device_id: getDeviceId(), user_id: uid, platform }).then(() => {});
     });
   }, []);
 

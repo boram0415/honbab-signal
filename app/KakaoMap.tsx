@@ -12,7 +12,6 @@ export interface MapPoint {
   lng: number;
   color: SignalColor;
   label: string;
-  quick: boolean;
 }
 
 const COLOR: Record<SignalColor, string> = {

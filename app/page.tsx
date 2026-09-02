@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { effectiveSolo, getSignal, getWaitInfo, isQuickMeal } from "@/lib/signal";
+import { effectiveSolo, getSignal, getWaitInfo } from "@/lib/signal";
 import { DEMO_COORDS } from "@/lib/demoCoords";
 import { FOOD_GROUPS, foodGroup } from "@/lib/foodType";
 import { createServerClient } from "@/lib/supabaseServer";
@@ -57,14 +57,14 @@ export default async function Home() {
       const wait = getWaitInfo(r, own, now);
       const coord: [number, number] | null =
         r.lat != null && r.lng != null ? [r.lat, r.lng] : (DEMO_COORDS[r.name] ?? null);
-      return { r, signal, wait, quick: isQuickMeal(r), coord };
+      return { r, signal, wait, coord };
     })
     .sort(
       (a, b) =>
         RANK[a.signal.color] - RANK[b.signal.color] ||
         (a.r.walk_min ?? 999) - (b.r.walk_min ?? 999),
     )
-    .map(({ r, signal, wait, quick, coord }) => ({
+    .map(({ r, signal, wait, coord }) => ({
       id: r.id,
       name: r.name,
       category: r.category,
@@ -76,7 +76,6 @@ export default async function Home() {
       reason: signal.reason,
       waitSource: wait.source,
       waitFreshestMin: wait.freshestMin,
-      quick,
       lat: coord ? coord[0] : null,
       lng: coord ? coord[1] : null,
       soloStatus: r.solo_status,

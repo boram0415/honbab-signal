@@ -20,7 +20,6 @@ export interface ListItem {
   reason: string;
   waitSource: "report" | "default" | "none";
   waitFreshestMin: number | null;
-  quick: boolean;
   lat: number | null;
   lng: number | null;
 }
@@ -183,11 +182,6 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
               >
                 {it.label}
               </span>
-              {it.quick && (
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
-                  빨리 나옴
-                </span>
-              )}
               <span className="text-slate-500">{it.reason}</span>
             </p>
           </div>

@@ -158,29 +158,12 @@ export function effectiveSolo(
   );
 }
 
-// 음식이 빨리 나오는가 (조리·제공 속도)
-// 조리가 빠른 메뉴류(국밥/국수/분식/덮밥 등)이거나 키오스크(주문 즉시 접수)면 빨리 나온다고 본다.
-// 셀프바(물·반찬 셀프)는 '자리 회전'과 관련이라 음식 제공 속도와 무관 → 제외.
-const FAST_SERVED_CATEGORY =
-  /국밥|국수|칼국수|냉면|분식|김밥|우동|라멘|라면|덮밥|마라탕|죽|백반|도시락|쌀국수|토스트|샌드|버거|샐러드/;
-
-export function isQuickMeal(restaurant: Restaurant): boolean {
-  return (
-    FAST_SERVED_CATEGORY.test(restaurant.category) ||
-    restaurant.order_type === "kiosk"
-  );
-}
-
-// 우리 데이터(혼밥 상태 + 빨리 + 카테고리)로 자동 생성하는 한줄 요약. 미조사면 null.
+// 우리 데이터(혼밥 상태 + 카테고리)로 자동 생성하는 한줄 요약. 미조사면 null.
 export function getSummary(restaurant: Restaurant): string | null {
   const solo = restaurant.solo_status;
   if (solo == null) return null;
   const cat = restaurant.category;
-  const quick = isQuickMeal(restaurant);
   if (solo === "red") return `여럿이 가기 좋은 ${cat} · 혼밥은 어려운 편`;
-  if (solo === "green")
-    return quick ? `혼자 가기 편하고 빨리 나오는 ${cat}` : `혼자 가기 편한 ${cat}`;
-  return quick
-    ? `혼자도 가능하고 빨리 나오는 ${cat} · 약간 눈치`
-    : `혼자도 가능한 ${cat} · 약간 눈치`;
+  if (solo === "green") return `혼자 가기 편한 ${cat}`;
+  return `혼자도 가능한 ${cat} · 약간 눈치`;
 }

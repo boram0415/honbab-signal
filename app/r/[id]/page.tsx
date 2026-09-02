@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ADDRESSES } from "@/lib/addresses";
 import { DEMO_COORDS } from "@/lib/demoCoords";
 import { PHONES } from "@/lib/phones";
-import { effectiveSolo, getSignal, getSummary, getWaitInfo, isQuickMeal } from "@/lib/signal";
+import { effectiveSolo, getSignal, getSummary, getWaitInfo } from "@/lib/signal";
 import { createServerClient } from "@/lib/supabaseServer";
 import { CHIP, TrafficLight } from "@/app/TrafficLight";
 import { Thumb } from "@/app/Thumb";
@@ -74,7 +74,6 @@ export default async function Detail({
 
   const signal = getSignal(r, reports, now);
   const wait = getWaitInfo(r, reports, now);
-  const quick = isQuickMeal(r);
   const summary = getSummary(r);
 
   const waitConfidence =
@@ -103,11 +102,6 @@ export default async function Detail({
 
       <div className="mt-1 flex items-center gap-2">
         <h1 className="flex-1 text-2xl font-bold tracking-tight text-slate-900">{r.name}</h1>
-        {quick && (
-          <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-600">
-            빨리 나옴
-          </span>
-        )}
         <HeartButton id={r.id} big />
       </div>
       <p className="mt-1 text-sm text-slate-500">

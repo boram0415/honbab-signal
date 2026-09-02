@@ -36,13 +36,11 @@ export default function HomeClient({
   const [view, setView] = useState<View>("list");
   const [soloOnly, setSoloOnly] = useState(false);
   const [noWaitOnly, setNoWaitOnly] = useState(false);
-  const [quickOnly, setQuickOnly] = useState(false);
   const [cat, setCat] = useState("");
 
   const filtered = items.filter((it) => {
     if (soloOnly && it.soloStatus === "red") return false;
     if (noWaitOnly && it.color !== "green") return false;
-    if (quickOnly && !it.quick) return false;
     if (cat && it.group !== cat) return false;
     return true;
   });
@@ -56,7 +54,6 @@ export default function HomeClient({
       lng: it.lng as number,
       color: it.color,
       label: it.label,
-      quick: it.quick,
     }));
 
   const pct = total ? Math.round((filledCount / total) * 100) : 0;
@@ -93,9 +90,6 @@ export default function HomeClient({
               </Chip>
               <Chip active={noWaitOnly} onClick={() => setNoWaitOnly((v) => !v)}>
                 웨이팅 없는 곳만
-              </Chip>
-              <Chip active={quickOnly} onClick={() => setQuickOnly((v) => !v)}>
-                빨리 나와요
               </Chip>
             </div>
 
