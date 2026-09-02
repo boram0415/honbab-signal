@@ -55,7 +55,8 @@ export default function HomeClient({
   });
 
   const points: MapPoint[] = filtered
-    .filter((it) => it.lat != null && it.lng != null)
+    // 지도에는 제보된 곳만(미조사=회색 gray 제외) — 지도가 회색으로 뒤덮이지 않게
+    .filter((it) => it.color !== "gray" && it.lat != null && it.lng != null)
     .map((it) => ({
       id: it.id,
       name: it.name,
