@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { SoloStatus } from "@/lib/types";
@@ -34,6 +34,15 @@ export default function HomeClient({
 }) {
   // 탭·필터를 클라이언트 상태로 → 클릭 시 서버 왕복/재렌더 없이 즉시 전환
   const [view, setView] = useState<View>("list");
+
+  // 상세 갔다 뒤로 오면 보던 탭 복원 (지도→상세→뒤로 시 목록으로 튀는 것 방지)
+  useEffect(() => {
+    const saved = sessionStorage.getItem("honbab_view");
+    if (saved === "map" || saved === "ranking" || saved === "list") setView(saved);
+  }, []);
+  useEffect(() => {
+    sessionStorage.setItem("honbab_view", view);
+  }, [view]);
   const [soloOnly, setSoloOnly] = useState(false);
   const [noWaitOnly, setNoWaitOnly] = useState(false);
   const [cat, setCat] = useState("");
