@@ -4,16 +4,17 @@ import { notFound } from "next/navigation";
 import { ADDRESSES } from "@/lib/addresses";
 import { DEMO_COORDS } from "@/lib/demoCoords";
 import { PHONES } from "@/lib/phones";
-import { effectiveSolo, getSignal, getSummary, getWaitInfo } from "@/lib/signal";
+import { effectiveSolo, effectiveSpeed, getSignal, getSummary, getWaitInfo, SPEED_TEXT } from "@/lib/signal";
 import { createServerClient } from "@/lib/supabaseServer";
 import { CHIP, TrafficLight } from "@/app/TrafficLight";
 import { Thumb } from "@/app/Thumb";
 import { HeartButton } from "@/app/HeartButton";
-import type { Restaurant, SoloReport, SoloStatus, WaitReport } from "@/lib/types";
+import type { Restaurant, SoloReport, SoloStatus, SpeedReport, WaitReport } from "@/lib/types";
 
 import ChatBox from "./ChatBox";
 import ReportButtons from "./ReportButtons";
 import SoloReportButtons from "./SoloReportButtons";
+import SpeedReportButtons from "./SpeedReportButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -60,12 +61,15 @@ export default async function Detail({
 
   if (!restaurant) notFound();
 
-  const [{ data: reportData }, { data: soloData }] = await Promise.all([
+  const [{ data: reportData }, { data: soloData }, { data: speedData }] = await Promise.all([
     supabase.from("wait_reports").select("*").eq("restaurant_id", id),
     supabase.from("solo_reports").select("*").eq("restaurant_id", id),
+    supabase.from("speed_reports").select("*").eq("restaurant_id", id),
   ]);
   const reports = (reportData ?? []) as WaitReport[];
   const soloReports = (soloData ?? []) as SoloReport[];
+  const speedReports = (speedData ?? []) as SpeedReport[];
+  const speed = effectiveSpeed(id, speedReports);
 
   // 크라우드소싱 반영
   const raw = restaurant as Restaurant;
@@ -156,14 +160,24 @@ export default async function Detail({
         </div>
       )}
 
-      <a
-        href={`https://map.naver.com/p/search/${encodeURIComponent(r.name + " 문정")}`}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-2 block rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 active:scale-[0.98]"
-      >
-        네이버 리뷰 보기
-      </a>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <a
+          href={`https://map.naver.com/p/search/${encodeURIComponent(r.name + " 문정")}`}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 active:scale-[0.98]"
+        >
+          네이버 리뷰
+        </a>
+        <a
+          href={`https://map.kakao.com/?q=${encodeURIComponent(r.name + " 문정")}`}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-2xl border border-slate-200 bg-white py-3 text-center text-sm font-semibold text-slate-600 active:scale-[0.98]"
+        >
+          카카오 리뷰
+        </a>
+      </div>
 
       {/* 혼밥 크라우드소싱 제보 (미조사면 강조) */}
       <section
@@ -184,6 +198,17 @@ export default async function Detail({
           <ReportButtons restaurantId={r.id} />
         </section>
       )}
+
+      {/* 음식 나오는 속도 (점심시간 제보 기반 가중평균) */}
+      <section className="mt-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+        {speed && (
+          <p className="mb-3 text-sm text-slate-600">
+            음식 속도: <b className="text-slate-900">{SPEED_TEXT[speed.level]}</b>{" "}
+            <span className="text-xs text-slate-400">· 제보 {speed.count}명</span>
+          </p>
+        )}
+        <SpeedReportButtons restaurantId={r.id} />
+      </section>
 
       {/* 실시간 웨이팅 채팅 (미조사여도 물어볼 수 있게 항상 노출) */}
       <ChatBox restaurantId={r.id} />
@@ -216,17 +241,6 @@ export default async function Detail({
         <Row label="영업시간" value={`${hhmm(r.open_time)}~${hhmm(r.close_time)}`} />
         <Row label="휴무" value={closed} />
       </Info>
-
-      {r.kakaomap_url && (
-        <a
-          href={r.kakaomap_url}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 block rounded-2xl bg-slate-900 py-3 text-center text-sm font-semibold text-white"
-        >
-          카카오맵에서 보기
-        </a>
-      )}
     </div>
   );
 }

@@ -86,6 +86,9 @@ export function AuthButton() {
         if (active) {
           setNick(null);
           localStorage.removeItem("honbab_nick");
+          // 로그인 안 된 상태면 저장(하트)은 계정 기능이므로 로컬 미러도 비운다
+          localStorage.removeItem(SAVED_KEY);
+          window.dispatchEvent(new Event("honbab-saved-changed"));
           setReady(true);
         }
         return;

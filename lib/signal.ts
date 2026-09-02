@@ -3,6 +3,8 @@ import type {
   SignalColor,
   SoloReport,
   SoloStatus,
+  SpeedLevel,
+  SpeedReport,
   WaitLevel,
   WaitReport,
 } from "./types";
@@ -156,6 +158,25 @@ export function effectiveSolo(
   return (Object.keys(count) as SoloStatus[]).reduce((a, b) =>
     count[b] > count[a] ? b : a,
   );
+}
+
+// 음식 나오는 속도 제보(빠름/보통/오래)의 가중 평균 → 대표값. 제보 없으면 null.
+export const SPEED_TEXT: Record<SpeedLevel, string> = {
+  fast: "빨리 나와요",
+  medium: "좀 오래 걸려요",
+  slow: "20분 이상 걸려요",
+};
+const SPEED_VALUE: Record<SpeedLevel, number> = { fast: 1, medium: 2, slow: 3 };
+
+export function effectiveSpeed(
+  restaurantId: string,
+  reports: SpeedReport[],
+): { level: SpeedLevel; count: number } | null {
+  const votes = reports.filter((r) => r.restaurant_id === restaurantId);
+  if (votes.length === 0) return null;
+  const avg = votes.reduce((s, v) => s + SPEED_VALUE[v.level], 0) / votes.length;
+  const level: SpeedLevel = avg < 1.67 ? "fast" : avg <= 2.33 ? "medium" : "slow";
+  return { level, count: votes.length };
 }
 
 // 우리 데이터(혼밥 상태 + 카테고리)로 자동 생성하는 한줄 요약. 미조사면 null.

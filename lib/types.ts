@@ -46,6 +46,16 @@ export interface SoloReport {
   created_at: string;
 }
 
+export type SpeedLevel = "fast" | "medium" | "slow";
+
+export interface SpeedReport {
+  id: string;
+  restaurant_id: string;
+  level: SpeedLevel;
+  device_id: string;
+  created_at: string;
+}
+
 export interface Message {
   id: string;
   restaurant_id: string;

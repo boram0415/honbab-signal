@@ -71,11 +71,19 @@ export default function HomeClient({
     <div>
       <header className="sticky top-0 z-10 -mx-4 mb-3 border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setView("list");
+              window.scrollTo(0, 0);
+            }}
+            className="flex items-center gap-2"
+            aria-label="목록으로"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icon" alt="혼밥 신호등 로고" className="h-7 w-7 rounded-lg" />
             <h1 className="text-lg font-bold tracking-tight">혼밥 신호등</h1>
-          </div>
+          </button>
           <AuthButton />
         </div>
         <p className="mt-0.5 text-xs text-slate-400">

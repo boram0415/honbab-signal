@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { effectiveSolo, getSignal, getWaitInfo } from "./signal";
-import type { Restaurant, SoloReport, SoloStatus, WaitLevel, WaitReport } from "./types";
+import { effectiveSolo, effectiveSpeed, getSignal, getWaitInfo } from "./signal";
+import type { Restaurant, SoloReport, SoloStatus, SpeedLevel, SpeedReport, WaitLevel, WaitReport } from "./types";
 
 // 기준 시각: 2026-08-21(금) 12:00 KST = 03:00 UTC
 const FRI_1200 = new Date("2026-08-21T03:00:00Z");
@@ -210,5 +210,27 @@ describe("effectiveSolo — 혼밥 크라우드소싱 집계", () => {
   });
   it("시드 값도 제보도 없으면 null(미조사)", () => {
     expect(effectiveSolo(makeRestaurant({ solo_status: null }), [])).toBeNull();
+  });
+});
+
+describe("effectiveSpeed — 음식 속도 가중평균", () => {
+  const sr = (level: SpeedLevel): SpeedReport => ({
+    id: "x",
+    restaurant_id: "r1",
+    level,
+    device_id: "d",
+    created_at: "",
+  });
+  it("제보 없으면 null", () => {
+    expect(effectiveSpeed("r1", [])).toBeNull();
+  });
+  it("빠름 우세면 fast", () => {
+    expect(effectiveSpeed("r1", [sr("fast"), sr("fast"), sr("medium")])?.level).toBe("fast");
+  });
+  it("느림 우세면 slow", () => {
+    expect(effectiveSpeed("r1", [sr("slow"), sr("slow"), sr("medium")])?.level).toBe("slow");
+  });
+  it("다른 식당 제보는 무시", () => {
+    expect(effectiveSpeed("r2", [sr("fast")])).toBeNull();
   });
 });
