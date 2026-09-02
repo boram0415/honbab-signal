@@ -184,7 +184,10 @@ function Chip({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        onClick();
+        window.scrollTo(0, 0); // 필터 바꾸면 맨 위부터 다시 보기
+      }}
       aria-pressed={active}
       className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset transition ${
         active ? "bg-slate-900 text-white ring-slate-900" : "bg-white text-slate-600 ring-slate-200"

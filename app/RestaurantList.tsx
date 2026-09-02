@@ -20,6 +20,7 @@ export interface ListItem {
   reason: string;
   waitSource: "report" | "default" | "none";
   waitFreshestMin: number | null;
+  chatting: boolean;
   lat: number | null;
   lng: number | null;
 }
@@ -154,7 +155,18 @@ export function RestaurantList({ items, mapView }: { items: ListItem[]; mapView:
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="truncate font-semibold text-slate-900">{it.name}</h2>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h2 className="truncate font-semibold text-slate-900">{it.name}</h2>
+                {it.chatting && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    </span>
+                    대화중
+                  </span>
+                )}
+              </div>
               {it.waitSource === "report" ? (
                 <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
                   실시간 {it.waitFreshestMin}분 전

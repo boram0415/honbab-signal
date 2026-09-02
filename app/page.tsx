@@ -36,13 +36,21 @@ export default async function Home() {
       supabase.from("wait_reports").select("*").gt("created_at", cutoffIso),
       supabase.from("solo_reports").select("*"),
       supabase.from("wait_reports").select("device_id").gte("created_at", monthStartIso),
-      supabase.from("messages").select("device_id").gte("created_at", monthStartIso),
+      supabase.from("messages").select("device_id,restaurant_id,created_at").gte("created_at", monthStartIso),
       supabase.from("profiles").select("id,nickname"),
     ]);
 
   const restaurants = (restaurantsRes.data ?? []) as Restaurant[];
   const reports = (reportsRes.data ?? []) as WaitReport[];
   const soloReports = (soloRes.data ?? []) as SoloReport[];
+
+  // 최근 30분 내 채팅이 있는 식당 = "대화중"
+  const chatCutoff = now.getTime() - 30 * 60 * 1000;
+  const activeChat = new Set(
+    ((msgMonthRes.data ?? []) as { restaurant_id: string; created_at: string }[])
+      .filter((m) => new Date(m.created_at).getTime() >= chatCutoff)
+      .map((m) => m.restaurant_id),
+  );
 
   const presentGroups = new Set(restaurants.map((r) => foodGroup(r.category)));
   const categories = FOOD_GROUPS.filter((g) => presentGroups.has(g));
@@ -79,6 +87,7 @@ export default async function Home() {
       lng: coord ? coord[1] : null,
       soloStatus: r.solo_status,
       group: foodGroup(r.category),
+      chatting: activeChat.has(r.id),
     }));
 
   const filledCount = restaurants.filter((r) => effectiveSolo(r, soloReports, now) !== null).length;
