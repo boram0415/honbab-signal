@@ -12,7 +12,7 @@ const c = createClient(
   { auth: { persistSession: false } },
 );
 
-const { data, error } = await c.from("visits").select("device_id,day");
+const { data, error } = await c.from("visits").select("device_id,user_id,day");
 if (error) {
   console.error("visits 조회 실패:", error.message);
   process.exit(1);
@@ -20,14 +20,18 @@ if (error) {
 
 const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
-// device -> 방문한 날짜 집합
+// 방문자 식별: 로그인했으면 user_id(기기 여러 대여도 1명), 아니면 device_id
+const idOf = (v) => v.user_id || v.device_id;
+
+// identity -> 방문한 날짜 집합
 const byDevice = new Map();
-const perDay = new Map(); // day -> Set(device)
+const perDay = new Map(); // day -> Set(identity)
 for (const v of data) {
-  if (!byDevice.has(v.device_id)) byDevice.set(v.device_id, new Set());
-  byDevice.get(v.device_id).add(v.day);
+  const id = idOf(v);
+  if (!byDevice.has(id)) byDevice.set(id, new Set());
+  byDevice.get(id).add(v.day);
   if (!perDay.has(v.day)) perDay.set(v.day, new Set());
-  perDay.get(v.day).add(v.device_id);
+  perDay.get(v.day).add(id);
 }
 
 const totalDevices = byDevice.size;
