@@ -119,20 +119,22 @@ export default function HomeClient({
         <Ranking entries={ranking} monthLabel={monthLabel} />
       ) : (
         <>
-          <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-3">
-            <div className="flex items-center justify-between text-xs font-bold text-emerald-800">
-              <span>문정동 혼밥 지도, 같이 만들어요</span>
-              <span>
-                {filledCount} / {total}곳
-              </span>
+          {view === "list" && (
+            <div className="mb-3 rounded-2xl bg-emerald-50 px-4 py-3">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-800">
+                <span>문정동 혼밥 지도, 같이 만들어요</span>
+                <span>
+                  {filledCount} / {total}곳
+                </span>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-emerald-100">
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-700">
+                회색은 아직 아무도 안 알려준 집이에요. 가보셨다면 상세에서 3초만 알려주세요.
+              </p>
             </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-emerald-100">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
-            </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-700">
-              회색은 아직 아무도 안 알려준 집이에요. 가보셨다면 상세에서 3초만 알려주세요.
-            </p>
-          </div>
+          )}
 
           {view === "map" && (
             <div className="mb-3">
