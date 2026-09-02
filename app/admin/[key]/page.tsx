@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
 
 type Visit = { device_id: string; user_id: string | null; day: string; platform: string | null };
-type Row = { kind?: string; nickname?: string; body: string; created_at: string };
+type Row = { id?: string; kind?: string; nickname?: string; body: string; created_at: string; done?: boolean };
 
 function kstDate(iso: string) {
   return new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().replace("T", " ").slice(0, 16);
@@ -32,7 +32,7 @@ export default async function Admin({ params }: { params: Promise<{ key: string 
     svc.from("restaurants").select("id,name,solo_status"),
     svc.from("solo_reports").select("restaurant_id,status,created_at"),
     svc.from("visits").select("device_id,user_id,day,platform"),
-    svc.from("suggestions").select("kind,body,created_at").order("created_at", { ascending: false }).limit(50),
+    svc.from("suggestions").select("id,kind,body,created_at,done").order("created_at", { ascending: false }).limit(50),
     svc.from("messages").select("nickname,body,created_at").order("created_at", { ascending: false }).limit(50),
     svc.from("wait_reports").select("id").gt("created_at", dayCutoff),
   ]);
@@ -100,9 +100,11 @@ export default async function Admin({ params }: { params: Promise<{ key: string 
   };
 
   const suggestions = ((sugRes.data ?? []) as Row[]).map((s) => ({
+    id: s.id as string,
     kind: s.kind as string,
     body: s.body,
     time: kstDate(s.created_at),
+    done: !!s.done,
   }));
   const messages = ((msgRes.data ?? []) as Row[]).map((m) => ({
     nickname: m.nickname as string,
@@ -110,5 +112,5 @@ export default async function Admin({ params }: { params: Promise<{ key: string 
     time: kstDate(m.created_at),
   }));
 
-  return <AdminDashboard summary={summary} suggestions={suggestions} messages={messages} />;
+  return <AdminDashboard adminKey={key} summary={summary} suggestions={suggestions} messages={messages} />;
 }

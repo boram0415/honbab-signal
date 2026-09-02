@@ -20,28 +20,47 @@ export type Summary = {
   waitToday: number;
   soloToday: number;
 };
-export type SugItem = { kind: string; body: string; time: string };
+export type SugItem = { id: string; kind: string; body: string; time: string; done: boolean };
 export type MsgItem = { nickname: string; body: string; time: string };
 
 const KIND: Record<string, string> = { place: "가게추가", feature: "기능제안" };
 
 export default function AdminDashboard({
+  adminKey,
   summary,
   suggestions,
   messages,
 }: {
+  adminKey: string;
   summary: Summary;
   suggestions: SugItem[];
   messages: MsgItem[];
 }) {
   const [tab, setTab] = useState<"summary" | "suggest" | "chat">("summary");
+  const [busy, setBusy] = useState<string | null>(null);
   const router = useRouter();
+
+  async function toggleDone(id: string, done: boolean) {
+    setBusy(id);
+    try {
+      await fetch("/api/admin/suggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: adminKey, id, done }),
+      });
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   // 서버 데이터를 15초마다 다시 당겨온다(탭 상태는 유지) → 채팅/제보 자동 갱신
   useEffect(() => {
-    const t = setInterval(() => router.refresh(), 15000);
+    const t = setInterval(() => {
+      if (!busy) router.refresh();
+    }, 15000);
     return () => clearInterval(t);
-  }, [router]);
+  }, [router, busy]);
 
   return (
     <div className="mx-auto max-w-[720px] pb-16">
@@ -101,22 +120,37 @@ export default function AdminDashboard({
       )}
 
       {tab === "suggest" && (
-        <Section title={`제보함 (${suggestions.length})`}>
+        <Section title={`제보함 (미완료 ${suggestions.filter((s) => !s.done).length} / 전체 ${suggestions.length})`}>
           {suggestions.length === 0 ? (
             <p className="text-sm text-slate-400">아직 없음</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {suggestions.map((s, i) => (
-                <li key={i} className="rounded-xl border border-slate-100 p-3 text-sm">
-                  <span
-                    className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${s.kind === "place" ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700"}`}
+              {[...suggestions]
+                .sort((a, b) => Number(a.done) - Number(b.done))
+                .map((s) => (
+                  <li
+                    key={s.id}
+                    className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${s.done ? "border-slate-100 bg-slate-50 opacity-60" : "border-slate-200"}`}
                   >
-                    {KIND[s.kind] ?? s.kind}
-                  </span>
-                  {s.body}
-                  <span className="ml-2 text-[11px] text-slate-400">{s.time}</span>
-                </li>
-              ))}
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${s.kind === "place" ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700"}`}
+                      >
+                        {KIND[s.kind] ?? s.kind}
+                      </span>
+                      <span className={s.done ? "line-through" : ""}>{s.body}</span>
+                      <span className="ml-2 text-[11px] text-slate-400">{s.time}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleDone(s.id, !s.done)}
+                      disabled={busy === s.id}
+                      className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-40 ${s.done ? "bg-slate-200 text-slate-500" : "bg-slate-900 text-white"}`}
+                    >
+                      {busy === s.id ? "…" : s.done ? "취소" : "완료"}
+                    </button>
+                  </li>
+                ))}
             </ul>
           )}
         </Section>
