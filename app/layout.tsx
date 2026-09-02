@@ -6,6 +6,8 @@ import VisitLogger from "./VisitLogger";
 import RegisterSW from "./RegisterSW";
 import InstallPrompt from "./InstallPrompt";
 import ScrollTop from "./ScrollTop";
+import TopProgress from "./TopProgress";
+import SuggestFab from "./SuggestFab";
 
 export const metadata: Metadata = {
   title: "혼밥 신호등",
@@ -28,12 +30,14 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="ko">
       <body>
+        <TopProgress />
         <VisitLogger />
         <RegisterSW />
         <main className="mx-auto min-h-screen w-full max-w-[640px] px-4 py-6">
           {children}
         </main>
         <InstallPrompt />
+        <SuggestFab />
         <ScrollTop />
       </body>
     </html>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 
 import { effectiveSolo, getSignal, getWaitInfo } from "@/lib/signal";
 import { DEMO_COORDS } from "@/lib/demoCoords";
@@ -122,10 +121,7 @@ export default async function Home() {
       )}
 
       <div className="mt-6 pb-4 text-center">
-        <Link href="/suggest" className="text-xs font-semibold text-slate-500 underline">
-          가게 추가·기능 제안하기
-        </Link>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-300">
+        <p className="text-[11px] leading-relaxed text-slate-300">
           혼밥·웨이팅 정보는 이용자 제보로 함께 채워가고 있어요
         </p>
       </div>
