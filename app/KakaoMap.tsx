@@ -186,7 +186,14 @@ export default function KakaoMap({
         kakao.maps.event.addListener(map, "idle", syncList);
         syncList();
 
-        locate(false); // 로드 시 내 위치 표시(이동은 안 함)
+        // 이미 위치를 허용한 경우에만 자동 표시 → 매번 권한 팝업 뜨는 것 방지
+        // (아직 결정 안 함/거부면 안 물어보고, 사용자가 '내 위치' 버튼 누를 때만 요청)
+        navigator.permissions
+          ?.query({ name: "geolocation" as PermissionName })
+          .then((p) => {
+            if (p.state === "granted") locate(false);
+          })
+          .catch(() => {});
       })
       .catch(() => {});
 
